@@ -1,0 +1,956 @@
+================================================================
+  PROMPT COMPLETO — SISTEMA "OBJETIVO RETENÇÃO"
+  Colégio Objetivo | Google Antigravity
+  Versão: 2.0 | Atualizado em: 28/02/2026
+================================================================
+
+PLANO DE SEGURANÇA E ARQUITETURA
+=================================
+
+STACK: React 18 + TypeScript + Tailwind CSS + Supabase + DOMPurify
+HOSPEDAGEM: Google Antigravity (deploy via Vercel ou Netlify)
+BANCO DE DADOS: Supabase (PostgreSQL)
+AUTENTICAÇÃO: Supabase Auth oficial
+
+PERFIS DE USUÁRIO:
+- admin (Admin Master): 1 usuário, acesso total, pode visualizar até 2 unidades
+- diretor: até 4 usuários no total, acesso à(s) unidade(s) autorizada(s)
+- atendimento por unidade: até 3 usuários, acesso apenas à sua unidade
+
+
+UNIDADES DO OBJETIVO: 
+- Objetivo São Vicente
+- Objetivo Praia Grande
+
+- (É importante se lembrar dos nomes das unidades do Objetivo para estruturar algumas funções do sistema). 
+
+
+CAMADAS DE SEGURANÇA:
+1.  Invite-only com token de 1 hora de expiração
+2.  RLS (Row Level Security) nativo do Supabase
+3.  Sem SECURITY DEFINER, sem RPC exposto
+4.  Sanitização XSS com DOMPurify
+5.  SQL Injection bloqueado por queries parametrizadas
+6.  CSRF protegido via JWT + refresh token rotativo
+7.  Content Security Policy (CSP) no HTML
+8.  Histórico de motivos imutável
+9.  Audit Log completo
+10. Timeout de sessão após 3h de inatividade
+11. Isolamento total entre unidades via RLS
+
+================================================================
+PROMPT PARA O GOOGLE ANTIGRAVITY
+================================================================
+
+Você é um engenheiro full-stack sênior especialista em segurança.
+Crie um sistema web completo em React + TypeScript + Tailwind CSS + Supabase
+para o Colégio Objetivo. O sistema se chama "Objetivo Retenção" e gerencia
+casos de cancelamento de matrícula e transferência de alunos.
+O sistema deve ser 100% em Português (PT-BR).
+
+---
+
+## STACK OBRIGATÓRIA
+
+- React 18 + TypeScript
+- Tailwind CSS
+- Supabase JS Client v2 (auth oficial)
+- DOMPurify (sanitização XSS)
+- React Router v6
+- date-fns (formatação de datas em PT-BR)
+- Recharts (gráficos do dashboard)
+
+NÃO use SECURITY DEFINER em nenhuma função.
+NÃO crie RPCs expostos publicamente.
+USE SEMPRE RLS nativo do Supabase.
+
+---
+
+## PERFIS DE USUÁRIO
+
+Existem 3 perfis armazenados na tabela profiles.role:
+
+- admin       → Admin Master (1 usuário, acesso total, pode visualizar até
+                2 unidades simultaneamente, pode conceder acesso multi-unidade
+                a diretores)
+- diretor     → Diretores (até 4, acesso à(s) unidade(s) autorizada(s) no total)
+- atendimento → Atendentes (até 3, acesso exclusivo à sua unidade, nunca
+                pode ter acesso a mais de uma unidade)
+
+---
+
+## REGRA DE MULTI-UNIDADE (MUITO IMPORTANTE)
+
+O Admin Master pode visualizar e gerenciar até 2 unidades do Colégio Objetivo.
+Cada unidade possui dados completamente isolados — uma unidade jamais deve
+enxergar, interferir ou se comunicar com os dados da outra.
+
+O Admin Master pode conceder permissão a um usuário com perfil "diretor"
+(sem acesso master) para visualizar as informações de mais de uma unidade,
+assim como ele próprio faz.
+
+O perfil "atendimento" NUNCA pode ter acesso a mais de uma unidade.
+Essa restrição deve ser aplicada tanto no banco (RLS) quanto no frontend
+(esconder a opção na UI para perfil atendimento).
+
+Para suportar multi-unidade, a relação entre usuários e unidades deve ser
+feita por uma tabela de junção (user_units), não por um único campo unit_id
+na tabela profiles. O campo unit_id em profiles pode ser mantido como
+unidade principal para referência, mas o controle de acesso real deve usar
+a tabela user_units.
+
+---
+
+## BANCO DE DADOS — Crie todas estas tabelas no Supabase:
+
+### Tabela: units
+```sql
+create table units (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz default now()
+);
+```
+Popule com as unidades: "Objetivo Portal" e "Objetivo Baixada".
+
+### Tabela: profiles
+```sql
+create table profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text not null,
+  email text not null,
+  role text not null check (role in ('admin', 'diretor', 'atendimento')),
+  unit_id uuid references units(id),
+  is_active boolean default true,
+  created_at timestamptz default now()
+);
+```
+Constraint de domínio de e-mail:
+```sql
+alter table profiles add constraint valid_email_domain
+  check (email ~* '^[^@]+@(objetivoportal|objetivobaixada)\.[a-z]+$');
+```
+
+### Tabela: user_units (controle de acesso multi-unidade)
+```sql
+create table user_units (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade not null,
+  unit_id uuid references units(id) on delete cascade not null,
+  granted_by uuid references profiles(id),
+  granted_at timestamptz default now(),
+  unique(user_id, unit_id)
+);
+```
+REGRA DE NEGÓCIO:
+- Perfil "atendimento": máximo 1 registro nesta tabela (enforce via trigger).
+- Perfil "diretor" sem permissão especial: 1 unidade.
+- Perfil "diretor" com permissão do admin: até 2 unidades.
+- Perfil "admin": acesso automático a todas as unidades via role = 'admin' no RLS.
+
+### Tabela: invite_tokens
+```sql
+create table invite_tokens (
+  id uuid primary key default gen_random_uuid(),
+  token text unique not null default encode(gen_random_bytes(32), 'hex'),
+  email text not null,
+  full_name text not null,
+  role text not null check (role in ('diretor', 'atendimento')),
+  unit_id uuid references units(id),
+  expires_at timestamptz not null default (now() + interval '1 hour'),
+  used_at timestamptz,
+  status text not null default 'pending' check (status in ('pending','used','expired')),
+  created_by uuid references profiles(id),
+  created_at timestamptz default now()
+);
+```
+
+### Tabela: students
+ATENÇÃO: Esta tabela foi expandida para conter todos os dados do formulário
+"Novo Registro de Caso" preenchido pelo setor de atendimento.
+
+```sql
+create table students (
+  id uuid primary key default gen_random_uuid(),
+
+  -- Identificação do aluno
+  full_name text not null,
+  ra text not null,
+  unit_id uuid references units(id) not null,
+
+  -- Nível de ensino (enum restrito)
+  education_level text not null check (
+    education_level in (
+      'educacao_infantil',
+      'ensino_fundamental_1',
+      'ensino_fundamental_2',
+      'ensino_medio'
+    )
+  ),
+
+  -- Série do aluno (texto livre, ex: "3º ano", "1ª série")
+  serie text not null,
+
+  -- Tipo do caso
+  status text not null check (status in ('cancelamento', 'transferencia')),
+
+  -- Interações com coordenação
+  spoke_with_coordination boolean not null default false,
+  coordination_reversed boolean,
+  -- coordination_reversed só é preenchido se spoke_with_coordination = true.
+  -- Se spoke_with_coordination = false, coordination_reversed deve ser NULL.
+  -- Se spoke_with_coordination = true e coordination_reversed = false,
+  -- o campo coordination_no_reversal_reason deve ser preenchido.
+  coordination_no_reversal_reason text,
+
+  -- Interação com a direção
+  spoke_with_direction boolean not null default false,
+
+  -- Controle de registro
+  created_by uuid references profiles(id),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+```
+
+REGRAS DE VALIDAÇÃO DO FORMULÁRIO (aplicar no frontend E via check no banco):
+
+1. Se spoke_with_coordination = false:
+   - coordination_reversed deve ser NULL
+   - coordination_no_reversal_reason deve ser NULL
+
+2. Se spoke_with_coordination = true E coordination_reversed = true:
+   - coordination_no_reversal_reason deve ser NULL
+
+3. Se spoke_with_coordination = true E coordination_reversed = false:
+   - coordination_no_reversal_reason é OBRIGATÓRIO (texto explicando o motivo)
+
+Adicionar constraints no banco:
+```sql
+alter table students add constraint coordination_logic check (
+  (spoke_with_coordination = false
+    and coordination_reversed is null
+    and coordination_no_reversal_reason is null)
+  or
+  (spoke_with_coordination = true
+    and coordination_reversed = true
+    and coordination_no_reversal_reason is null)
+  or
+  (spoke_with_coordination = true
+    and coordination_reversed = false
+    and coordination_no_reversal_reason is not null
+    and trim(coordination_no_reversal_reason) <> '')
+);
+```
+
+### Tabela: student_reasons
+```sql
+create table student_reasons (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid references students(id) on delete cascade not null,
+  reason_text text not null,
+  created_by uuid references profiles(id) not null,
+  created_by_name text not null,
+  approval_status text not null default 'approved'
+    check (approval_status in ('pending', 'approved', 'rejected')),
+  approved_by uuid references profiles(id),
+  approved_at timestamptz,
+  created_at timestamptz default now()
+);
+```
+REGRA: O primeiro motivo de um aluno é salvo com approval_status = 'approved'
+automaticamente. Todo motivo subsequente é salvo com approval_status = 'pending'
+e precisa de aprovação do diretor.
+
+### Tabela: audit_logs
+```sql
+create table audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id),
+  user_name text,
+  action text not null,
+  entity text not null,
+  entity_id uuid,
+  details jsonb,
+  created_at timestamptz default now()
+);
+```
+
+---
+
+## ROW LEVEL SECURITY
+
+Ative RLS em TODAS as tabelas. Nenhuma tabela deve ter RLS desativado.
+
+### profiles
+```sql
+alter table profiles enable row level security;
+
+create policy "profiles_select" on profiles for select
+  using (
+    auth.uid() = id
+    or exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+
+create policy "profiles_insert" on profiles for insert
+  with check (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+```
+
+### user_units
+```sql
+alter table user_units enable row level security;
+
+create policy "user_units_select" on user_units for select
+  using (
+    user_id = auth.uid()
+    or exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+
+create policy "user_units_insert" on user_units for insert
+  with check (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+
+create policy "user_units_delete" on user_units for delete
+  using (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+```
+
+### students
+```sql
+alter table students enable row level security;
+
+create policy "students_select" on students for select
+  using (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+    or exists (
+      select 1 from user_units uu
+      where uu.user_id = auth.uid()
+      and uu.unit_id = students.unit_id
+    )
+  );
+
+create policy "students_insert" on students for insert
+  with check (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+    or exists (
+      select 1 from profiles p
+      join user_units uu on uu.user_id = p.id
+      where p.id = auth.uid()
+      and p.role = 'atendimento'
+      and uu.unit_id = unit_id
+    )
+  );
+
+create policy "students_update" on students for update
+  using (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+    or exists (
+      select 1 from profiles p
+      join user_units uu on uu.user_id = p.id
+      where p.id = auth.uid()
+      and p.role = 'atendimento'
+      and uu.unit_id = students.unit_id
+    )
+  );
+```
+
+### student_reasons
+```sql
+alter table student_reasons enable row level security;
+
+create policy "reasons_select" on student_reasons for select
+  using (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+    or exists (
+      select 1 from user_units uu
+      join students s on s.id = student_reasons.student_id
+      where uu.user_id = auth.uid()
+      and uu.unit_id = s.unit_id
+    )
+  );
+
+create policy "reasons_insert" on student_reasons for insert
+  with check (
+    exists (
+      select 1 from profiles p
+      where p.id = auth.uid()
+      and p.role in ('admin', 'atendimento')
+    )
+  );
+
+create policy "reasons_update" on student_reasons for update
+  using (
+    exists (
+      select 1 from profiles p
+      where p.id = auth.uid()
+      and p.role in ('admin', 'diretor')
+    )
+  );
+```
+
+### invite_tokens
+```sql
+alter table invite_tokens enable row level security;
+
+create policy "tokens_select" on invite_tokens for select
+  using (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+
+create policy "tokens_insert" on invite_tokens for insert
+  with check (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+```
+
+### audit_logs
+```sql
+alter table audit_logs enable row level security;
+
+create policy "audit_select" on audit_logs for select
+  using (
+    exists (
+      select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'
+    )
+  );
+
+create policy "audit_insert" on audit_logs for insert
+  with check (auth.uid() is not null);
+```
+
+---
+
+## FLUXO DE CONVITE (Invite-Only, sem registro público)
+
+O sistema NÃO deve ter página de cadastro pública. O fluxo é:
+
+1. Admin Master acessa o painel de usuários e clica em "Adicionar Usuário".
+
+2. Admin preenche:
+   - Nome completo
+   - E-mail (validado: apenas @objetivoportal.com.br ou @objetivobaixada.com.br)
+   - Perfil: diretor ou atendimento
+   - Unidade principal
+   - Se perfil for "diretor": opção de selecionar segunda unidade (opcional)
+   - Se perfil for "atendimento": o admin master só poderá selecionar 1 unidade. "Atendentes só podem acessar uma unidade"
+
+3. O sistema salva na tabela invite_tokens com expires_at = now() + 1 hora.
+
+4. O sistema envia e-mail via Supabase com link:
+   https://[dominio]/convite/[token]
+
+5. O usuário abre o link. O sistema verifica:
+   - Token existe na tabela?
+   - status = 'pending'?
+   - expires_at > now()?
+   Se qualquer verificação falhar: tela de erro "Link inválido ou expirado.
+   Solicite um novo convite ao administrador."
+
+6. Se válido: tela com nome e e-mail pré-preenchidos (somente leitura) e
+   campo para criar senha com requisitos:
+   - Mínimo 8 caracteres
+   - Pelo menos 1 letra maiúscula
+   - Pelo menos 1 número
+   - Pelo menos 1 caractere especial
+   Mostrar indicador visual de força da senha em tempo real.
+
+7. Ao confirmar:
+   - Cria usuário no Supabase Auth
+   - Cria registro em profiles
+   - Cria registros em user_units
+   - Marca token: used_at = now(), status = 'used'
+   - Registra em audit_logs
+
+8. Redireciona para /login com mensagem de sucesso.
+
+---
+
+## GESTÃO DE ACESSO MULTI-UNIDADE PELO ADMIN
+
+Na tela /usuarios, o Admin deve ter seção "Permissões de Unidade" para
+cada usuário diretor:
+
+- Listar unidades às quais o diretor já tem acesso
+- Botão "Conceder acesso a outra unidade" (disponível se tiver menos de 2)
+- Botão "Revogar acesso" (desde que reste pelo menos 1 unidade)
+- Para perfil atendimento: seção desabilitada com mensagem explicativa
+
+Ao conceder nova unidade:
+- Verificar se o usuário é diretor (não atendimento)
+- Verificar se ele já não tem 2 unidades
+- Inserir em user_units
+- Registrar em audit_logs: "Acesso à unidade X concedido ao usuário Y"
+
+---
+
+## FORMULÁRIO: NOVO REGISTRO DE CASO (/alunos/novo)
+
+Esta é a tela principal usada pelo setor de atendimento para registrar
+casos de cancelamento de matrícula ou transferência. Acesso: apenas
+perfis "atendimento" e "admin".
+
+O formulário deve ser organizado em seções visuais claras com separadores,
+títulos de seção e ícones. Todos os campos obrigatórios devem ter asterisco
+vermelho (*) e validação em tempo real.
+
+### SEÇÃO 1 — Identificação do Aluno
+
+Campo 1: Nome completo do aluno
+  - Tipo: input text
+  - Obrigatório: sim
+  - Sanitizar com DOMPurify antes de salvar
+  - Placeholder: "Digite o nome completo do aluno"
+
+Campo 2: RA (Registro do Aluno)
+  - Tipo: input text
+  - Obrigatório: sim
+  - Placeholder: "Digite o RA do aluno"
+
+Campo 3: Nível de Ensino
+  - Tipo: select (dropdown)
+  - Obrigatório: sim
+  - Opções exatas (usar estes valores no banco e no frontend):
+    * "Educação Infantil"    → valor: educacao_infantil
+    * "Ensino Fundamental I" → valor: ensino_fundamental_1
+    * "Ensino Fundamental II"→ valor: ensino_fundamental_2
+    * "Ensino Médio"         → valor: ensino_medio
+  - Placeholder: "Selecione o nível de ensino"
+
+Campo 4: Série
+  - Tipo: input text
+  - Obrigatório: sim
+  - Placeholder: "Ex: 3º ano, 1ª série, Maternal II..."
+  - Sanitizar com DOMPurify antes de salvar
+
+### SEÇÃO 2 — Tipo do Caso
+
+Campo 5: Tipo do registro
+  - Tipo: radio buttons ou select
+  - Obrigatório: sim
+  - Opções:
+    * "Cancelamento de Matrícula" → valor: cancelamento
+    * "Transferência"             → valor: transferencia
+  - Exibir como dois cards clicáveis com ícone e descrição curta,
+    destacando visualmente o selecionado
+
+### SEÇÃO 3 — Interação com a Coordenação
+
+Título da seção: "Atendimento pela Coordenação"
+
+Campo 6: Já conversou com a coordenação?
+  - Tipo: radio buttons
+  - Obrigatório: sim
+  - Opções: "Sim" / "Não"
+  - Valor no banco: spoke_with_coordination (boolean)
+
+Campo 7 (condicional — exibir SOMENTE se Campo 6 = "Sim"):
+  Conseguiu reverter?
+  - Tipo: radio buttons
+  - Obrigatório: sim (quando visível)
+  - Opções: "Sim" / "Não"
+  - Valor no banco: coordination_reversed (boolean)
+
+Campo 8 (condicional — exibir SOMENTE se Campo 7 = "Não"):
+  Por qual motivo não foi possível reverter?
+  - Tipo: textarea
+  - Obrigatório: sim (quando visível)
+  - Mínimo 20 caracteres
+  - Placeholder: "Descreva o motivo pelo qual não foi possível reverter
+    a situação com a coordenação..."
+  - Contador de caracteres visível
+  - Sanitizar com DOMPurify antes de salvar
+  - Valor no banco: coordination_no_reversal_reason (text)
+
+LÓGICA DE EXIBIÇÃO CONDICIONAL:
+  - Quando Campo 6 muda para "Não": ocultar Campos 7 e 8, limpar seus valores
+  - Quando Campo 7 muda para "Sim": ocultar Campo 8, limpar seu valor
+  - Quando Campo 7 muda para "Não": exibir Campo 8
+  - Usar animação suave de fade-in/fade-out ao mostrar/ocultar campos
+    condicionais
+
+### SEÇÃO 4 — Interação com a Direção
+
+Título da seção: "Atendimento pela Direção"
+
+Campo 9: Já conversou com a direção?
+  - Tipo: radio buttons
+  - Obrigatório: sim
+  - Opções: "Sim" / "Não"
+  - Valor no banco: spoke_with_direction (boolean)
+
+### SEÇÃO 5 — Motivo do Cancelamento / Transferência
+
+Título da seção: "Relato do Atendimento"
+
+Campo 10: Motivo detalhado
+  - Tipo: textarea grande
+  - Obrigatório: sim
+  - Mínimo 10 caracteres
+  - Altura mínima: 180px, redimensionável verticalmente
+  - Placeholder: "Descreva detalhadamente o motivo relatado pelo responsável
+    ou pelo aluno para o cancelamento de matrícula ou transferência..."
+  - Contador de caracteres visível
+  - Sanitizar com DOMPurify antes de salvar
+  - Este campo será salvo como o primeiro registro em student_reasons
+    com approval_status = 'approved' automaticamente
+
+### BOTÕES DO FORMULÁRIO
+
+- Botão "Cancelar" (secundário, esquerda): volta para /alunos com modal
+  de confirmação se houver dados preenchidos ("Tem certeza? Os dados
+  preenchidos serão perdidos.")
+- Botão "Salvar Registro" (primário, direita): faz submit do formulário
+  com loading state ("Salvando...") e ícone de spinner
+
+### VALIDAÇÃO COMPLETA DO FORMULÁRIO
+
+Antes de submeter, validar:
+1. Todos os campos obrigatórios preenchidos
+2. Campos condicionais validados conforme sua lógica
+3. Sanitizar com DOMPurify todos os campos de texto livre
+4. Verificar que o e-mail do usuário logado pertence à unidade correta (RLS)
+
+Após salvar com sucesso:
+- Redirecionar para /alunos/:id (tela de detalhes do aluno recém-criado)
+- Exibir toast: "Registro criado com sucesso!"
+- Registrar em audit_logs: ação "student_created", com detalhes do aluno
+
+---
+
+## PÁGINAS E ROTAS
+
+### Rotas Públicas
+- /login           → Tela de login (e-mail + senha). Sem link de cadastro.
+- /convite/:token  → Tela de ativação de convite
+
+### Rotas Privadas (requer autenticação)
+- /dashboard       → Dashboard principal
+- /alunos          → Lista de alunos das unidades do usuário
+- /alunos/novo     → Formulário "Novo Registro de Caso" (atendimento e admin)
+- /alunos/:id      → Detalhes do aluno + timeline de motivos
+- /pendencias      → Motivos pendentes de aprovação (diretor e admin)
+- /usuarios        → Gerenciamento de usuários (apenas admin)
+- /usuarios/novo   → Cadastrar usuário via convite (apenas admin)
+
+Se um usuário diretor tiver acesso a 2 unidades, as telas de listagem
+(/alunos, /pendencias) devem exibir um seletor de unidade no topo (abas
+ou dropdown). Dados de uma unidade nunca aparecem misturados com os da outra.
+
+---
+
+## TELA DE LISTA DE ALUNOS (/alunos)
+
+Exibir tabela com colunas:
+- Nome do aluno
+- RA
+- Nível de Ensino (formatado em PT-BR)
+- Série
+- Tipo (badge: "Cancelamento" em vermelho / "Transferência" em laranja)
+- Coordenação (ícone: ✓ se conversou, ✗ se não)
+- Direção (ícone: ✓ se conversou, ✗ se não)
+- Data do registro
+- Ações (botão "Ver detalhes")
+
+Filtros no topo: por tipo de caso, por nível de ensino, por período.
+Campo de busca por nome ou RA.
+
+---
+
+## DASHBOARD (com animações)
+
+Crie um dashboard visualmente profissional com:
+- Cores: azul escuro #1a237e, branco, detalhes em amarelo âmbar #FFA000
+- Tipografia limpa, espaçamento generoso, ícones modernos
+
+### Seção 1 — Cards animados (CSS transitions ou framer-motion)
+- Total de cancelamentos (ícone vermelho, contador animado)
+- Total de transferências (ícone laranja, contador animado)
+- Motivos pendentes de aprovação (ícone amarelo — visível para diretor
+  e admin, pisca suavemente se houver pendências)
+- Total de casos registrados no mês atual
+
+Se o usuário tiver acesso a 2 unidades, os cards mostram totais da unidade
+selecionada (com seletor de unidade no topo).
+
+### Seção 2 — Gráfico de barras (Recharts)
+Cancelamentos e transferências por mês nos últimos 6 meses.
+Barras em cores diferentes para cada tipo. Tooltip em PT-BR.
+
+### Seção 3 — Breakdown por Nível de Ensino
+Gráfico de pizza ou barras horizontais mostrando a distribuição de casos
+por nível de ensino (Educação Infantil, EF I, EF II, Ensino Médio).
+
+### Seção 4 — Indicadores de Atendimento
+Cards menores mostrando:
+- % de casos que conversaram com a coordenação
+- % de casos revertidos pela coordenação
+- % de casos que conversaram com a direção
+
+### Seção 5 — Últimos 5 casos registrados
+Lista com: nome, tipo (badge), nível de ensino, série, unidade e data.
+Animação de entrada: slide-in da esquerda com delay progressivo.
+
+### Banner de pendências
+Para perfil diretor: banner amarelo âmbar pulsando suavemente quando
+houver motivos pendentes. Texto:
+"Você tem X motivo(s) aguardando sua aprovação. Ver pendências →"
+
+---
+
+## TELA DE DETALHES DO ALUNO (/alunos/:id)
+
+### Bloco de informações do aluno (card no topo)
+Exibir todos os campos em layout de grade:
+- Nome completo
+- RA
+- Unidade
+- Nível de Ensino (label amigável em PT-BR)
+- Série
+- Tipo do caso (badge colorido)
+- Data do registro
+- Registrado por (nome do atendente)
+
+### Bloco de atendimento
+Exibir as respostas dos campos de coordenação e direção de forma clara:
+
+  COORDENAÇÃO
+  ┌─────────────────────────────────────────────────────┐
+  │ Conversou com a coordenação? [Sim / Não]            │
+  │ Conseguiu reverter? [Sim / Não / —]                 │
+  │ Motivo de não reversão: [texto ou —]                │
+  └─────────────────────────────────────────────────────┘
+
+  DIREÇÃO
+  ┌─────────────────────────────────────────────────────┐
+  │ Conversou com a direção? [Sim / Não]                │
+  └─────────────────────────────────────────────────────┘
+
+### Timeline de motivos
+Abaixo do bloco de informações: timeline vertical com TODOS os motivos
+em ordem cronológica (mais antigo primeiro, mais recente no final).
+
+Cada entrada da timeline exibe:
+- Data e hora em PT-BR (ex: "12 de fevereiro de 2026 às 14:30")
+- Nome do usuário de atendimento que registrou
+- Texto do motivo (sanitizado com DOMPurify antes de renderizar)
+  NUNCA usar dangerouslySetInnerHTML sem DOMPurify
+- Badge de status:
+  * "Aprovado"          → verde
+  * "Pendente aprovação"→ amarelo
+  * "Rejeitado"         → vermelho
+
+Para perfil "diretor": botões "Aprovar" e "Rejeitar" nos motivos Pendentes.
+Ao clicar: modal de confirmação antes de executar.
+
+Para perfil "atendimento": botão "Adicionar Motivo" que abre modal com:
+- Textarea grande (mínimo 200px de altura)
+- Contador de caracteres
+- Botão Salvar com loading state
+Ao salvar:
+- Sanitizar texto com DOMPurify
+- Se já existir ao menos 1 motivo aprovado: salvar com approval_status = 'pending'
+- Se for o primeiro motivo: salvar com approval_status = 'approved'
+- Registrar em audit_logs
+
+---
+
+## SEGURANÇA ADICIONAL
+
+1. SANITIZAÇÃO XSS
+   Importe DOMPurify. Use em TODOS os campos de texto livre antes de salvar
+   e antes de renderizar. Nunca use dangerouslySetInnerHTML sem DOMPurify.
+   Exemplo:
+     const safeText = DOMPurify.sanitize(inputValue);
+   Campos que exigem sanitização obrigatória:
+   - full_name (aluno)
+   - serie
+   - coordination_no_reversal_reason
+   - reason_text (motivo)
+   - qualquer outro campo de texto livre
+
+2. VALIDAÇÃO DE DOMÍNIO DE E-MAIL
+   Regex no frontend: /^[^@]+@(objetivoportal.com.br|objetivobaixada.com.br)\.[a-z]+$/i
+   Aplicar em todos os formulários com campo de e-mail antes de submeter.
+
+3. PROTEÇÃO DE ROTAS
+   Componente PrivateRoute que verifica:
+   - Usuário autenticado? → se não: redireciona para /login
+   - Role correta para a rota? → se não: redireciona para /dashboard com
+     toast "Você não tem permissão para acessar esta área."
+
+4. TIMEOUT DE SESSÃO
+   Listener no Supabase Auth para TOKEN_REFRESHED e SIGNED_OUT.
+   Se sessão expirar: redirecionar para /login com mensagem
+   "Sua sessão expirou. Faça login novamente."
+   Sessão expira após 8 horas de inatividade.
+
+5. RATE LIMITING NO CONVITE
+   No componente de ativação: após 3 tentativas com senha inválida,
+   bloquear formulário por 30 segundos com contador regressivo visível.
+
+6. SEM DADOS SENSÍVEIS NO LOCALSTORAGE
+   Use apenas a sessão gerenciada pelo Supabase Auth.
+   Não armazene tokens ou dados de usuário manualmente no localStorage.
+
+7. CONTENT SECURITY POLICY
+   No index.html:
+   <meta http-equiv="Content-Security-Policy"
+     content="default-src 'self';
+              script-src 'self';
+              style-src 'self' 'unsafe-inline';
+              connect-src 'self' https://*.supabase.co;
+              img-src 'self' data:;">
+
+8. AUDIT LOG
+   Criar função logAction(action, entity, entityId, details) que insere
+   em audit_logs. Chamar nas ações:
+   - Login bem-sucedido
+   - Tentativa de login falha (3x consecutivas)
+   - Cadastro de aluno (student_created)
+   - Inserção de motivo (reason_added)
+   - Aprovação de motivo (reason_approved)
+   - Rejeição de motivo (reason_rejected)
+   - Cadastro de usuário (user_invited)
+   - Concessão de acesso a unidade (unit_access_granted)
+   - Revogação de acesso a unidade (unit_access_revoked)
+   - Logout (user_logout)
+
+9. ISOLAMENTO DE UNIDADE
+   Toda query que busca students, student_reasons ou dados sensíveis
+   DEVE filtrar pela(s) unidade(s) do usuário logado usando user_units.
+   O RLS garante isso no banco — nunca confiar apenas no frontend.
+
+10. VALIDAÇÃO DUPLA DOS CAMPOS CONDICIONAIS
+    Os campos condicionais da seção "Coordenação" devem ser validados:
+    - No frontend: antes de submeter o formulário
+    - No banco: via constraint SQL (já definida acima)
+    Nunca assumir que apenas um dos dois lados é suficiente.
+
+---
+
+## LAYOUT E UX
+
+- Menu lateral fixo com ícones e labels em PT-BR
+- Header com: nome do usuário logado, unidade(s) e botão de logout
+- Se diretor com 2 unidades: seletor de unidade ativo no header
+- Todas as mensagens de erro, sucesso e validação em PT-BR
+- Loading states com skeleton loaders em todas as telas
+- Responsivo para desktop e tablet
+- Formulários com validação em tempo real
+- Animações suaves nos campos condicionais (fade-in/fade-out)
+- Confirmação modal antes de ações irreversíveis
+- Toast notifications para feedback de ações (sucesso/erro)
+
+---
+
+## VARIÁVEIS DE AMBIENTE
+
+Criar arquivo .env.example:
+
+  VITE_SUPABASE_URL=your_supabase_url
+  VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+NUNCA expor a service_role key no frontend.
+
+---
+
+## INSTRUÇÕES FINAIS
+
+Crie o projeto completo e funcional com todos os arquivos organizados.
+Execute nesta ordem:
+1. Schema SQL completo (todas as tabelas, constraints, RLS policies)
+2. Estrutura de pastas React organizada por feature
+3. Configuração do cliente Supabase
+4. Componentes de autenticação e proteção de rotas
+5. Páginas e componentes do sistema
+6. Estilos e animações do dashboard
+
+O sistema deve estar pronto para uso após configurar as variáveis de
+ambiente e executar o SQL no Supabase.
+
+================================================================
+INSTRUÇÕES DE PRIMEIRO USO APÓS GERAÇÃO DO SISTEMA
+================================================================
+
+1. Acesse o painel do Supabase
+2. Vá em Authentication > Users > "Add User"
+3. Crie manualmente o usuário Admin Master com e-mail e senha seguros
+4. No SQL Editor do Supabase, insira manualmente o registro do admin:
+
+   INSERT INTO profiles (id, full_name, email, role, unit_id, is_active)
+   VALUES (
+     '[UUID do usuário criado no passo 3]',
+     'Nome do Diretor Admin',
+     'email@objetivoportal.com.br',
+     'admin',
+     '[UUID da unidade principal]',
+     true
+   );
+
+   INSERT INTO user_units (user_id, unit_id)
+   VALUES
+     ('[UUID do admin]', '[UUID unidade Objetivo Portal]'),
+     ('[UUID do admin]', '[UUID unidade Objetivo Baixada]');
+
+5. Acesse o sistema com as credenciais do Admin Master
+6. Todos os demais usuários devem ser cadastrados pelo painel do Admin
+   usando o fluxo de convite por e-mail
+
+================================================================
+RESUMO DOS CAMPOS DO FORMULÁRIO "NOVO REGISTRO DE CASO"
+================================================================
+
+SEÇÃO 1 — Identificação do Aluno
+  [*] Nome completo do aluno       → students.full_name
+  [*] RA                           → students.ra
+  [*] Nível de Ensino (select)     → students.education_level
+      Opções: Educação Infantil | EF I | EF II | Ensino Médio
+  [*] Série                        → students.serie
+
+SEÇÃO 2 — Tipo do Caso
+  [*] Tipo (radio/card)            → students.status
+      Opções: Cancelamento de Matrícula | Transferência
+
+SEÇÃO 3 — Atendimento pela Coordenação
+  [*] Conversou com a coordenação? → students.spoke_with_coordination
+      [SE SIM] Conseguiu reverter? → students.coordination_reversed
+        [SE NÃO] Por qual motivo?  → students.coordination_no_reversal_reason
+
+SEÇÃO 4 — Atendimento pela Direção
+  [*] Conversou com a direção?     → students.spoke_with_direction
+
+SEÇÃO 5 — Relato do Atendimento
+  [*] Motivo detalhado (textarea)  → student_reasons.reason_text
+      (salvo automaticamente como primeiro motivo, status = 'approved')
+
+[*] = campo obrigatório
+
+================================================================
+FIM DO PROMPT — SISTEMA OBJETIVO RETENÇÃO v2.0
+================================================================
