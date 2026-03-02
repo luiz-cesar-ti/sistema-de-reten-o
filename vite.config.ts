@@ -63,6 +63,8 @@ Evite excesso de formalismo ou termos excessivamente rebuscados. O texto deve so
 
 Organize as informações de forma lógica e, quando aplicável, cronológica.
 
+Estruture o texto em parágrafos que reflitam mudanças de assunto ou etapa do relato (reclamação, tentativas de resolução, decisão final).
+
 REGRA DE PROPORÇÃO
 
 Se o texto original for curto e contiver poucos fatos, mantenha a resposta igualmente concisa.
