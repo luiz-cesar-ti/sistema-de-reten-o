@@ -63,6 +63,7 @@ export function Dashboard() {
                 .from('students')
                 .select('*')
                 .eq('unit_id', activeUnitId)
+                .eq('is_deleted', false)
                 .gte('created_at', startD.toISOString())
                 .lte('created_at', endD.toISOString())
                 .order('created_at', { ascending: false });
@@ -72,9 +73,10 @@ export function Dashboard() {
             if (hasPrivilege('admin') || hasPrivilege('diretor') || hasPrivilege('coordenacao')) {
                 const { count } = await supabase
                     .from('student_reasons')
-                    .select('id, students!inner(unit_id)', { count: 'exact', head: true })
+                    .select('id, students!inner(unit_id, is_deleted)', { count: 'exact', head: true })
                     .eq('approval_status', 'pending')
-                    .eq('students.unit_id', activeUnitId);
+                    .eq('students.unit_id', activeUnitId)
+                    .eq('students.is_deleted', false);
                 pendentesCount = count || 0;
             }
 
@@ -85,9 +87,9 @@ export function Dashboard() {
 
             // Calculate simple metrics using all lifetime stats? Or 6 months? 
             // The prompt just says "Total de cancelamentos" which usually means all time unless specified. Let's fetch all time for top metrics.
-            const { count: totalCancels } = await supabase.from('students').select('id', { count: 'exact', head: true }).eq('unit_id', activeUnitId).eq('status', 'cancelamento');
-            const { count: totalTransfers } = await supabase.from('students').select('id', { count: 'exact', head: true }).eq('unit_id', activeUnitId).eq('status', 'transferencia');
-            const { count: monthTotal } = await supabase.from('students').select('id', { count: 'exact', head: true }).eq('unit_id', activeUnitId).gte('created_at', currentMonthStart);
+            const { count: totalCancels } = await supabase.from('students').select('id', { count: 'exact', head: true }).eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'cancelamento');
+            const { count: totalTransfers } = await supabase.from('students').select('id', { count: 'exact', head: true }).eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'transferencia');
+            const { count: monthTotal } = await supabase.from('students').select('id', { count: 'exact', head: true }).eq('unit_id', activeUnitId).eq('is_deleted', false).gte('created_at', currentMonthStart);
 
             setMetrics({
                 cancelamentos: totalCancels || 0,
