@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, UserPlus, AlertTriangle } from 'lucide-react';
+import { Bell, UserPlus, AlertTriangle, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -42,6 +42,22 @@ export function NotificationBell() {
         setReadIds(prev => {
             const next = Array.from(new Set([...prev, ...ids]));
             localStorage.setItem('notification_read_ids', JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
+        try {
+            const stored = localStorage.getItem('notification_dismissed_ids');
+            return stored ? JSON.parse(stored) : [];
+        } catch { return []; }
+    });
+
+    const handleDismiss = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation(); // Prevents clicking the notification body
+        setDismissedIds(prev => {
+            const next = Array.from(new Set([...prev, id]));
+            localStorage.setItem('notification_dismissed_ids', JSON.stringify(next));
             return next;
         });
     };
@@ -180,7 +196,8 @@ export function NotificationBell() {
 
     if (!isAuthorized) return null;
 
-    const unreadCount = notifications.filter(n => !readIds.includes(n.id)).length;
+    const visibleNotifications = notifications.filter(n => !dismissedIds.includes(n.id));
+    const unreadCount = visibleNotifications.filter(n => !readIds.includes(n.id)).length;
 
     const handleNotificationClick = (n: NotificationItem) => {
         setIsDropdownOpen(false);
@@ -227,45 +244,59 @@ export function NotificationBell() {
                     </div>
 
                     <div className="max-h-[70vh] overflow-y-auto">
-                        {notifications.length === 0 ? (
+                        {visibleNotifications.length === 0 ? (
                             <div className="p-6 text-center text-gray-500 text-sm">
                                 Não há notificações novas hoje.
                             </div>
                         ) : (
                             <ul className="divide-y divide-gray-100">
-                                {notifications.map((n) => (
-                                    <li
-                                        key={n.id}
-                                        onClick={() => handleNotificationClick(n)}
-                                        className="p-4 hover:bg-blue-50 cursor-pointer transition-colors flex gap-3"
-                                    >
-                                        <div className="flex-shrink-0 mt-0.5">
-                                            {n.type === 'student' ? (
-                                                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                                                    <UserPlus className="w-4 h-4" />
-                                                </div>
-                                            ) : (
-                                                <div className="w-8 h-8 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center">
-                                                    <AlertTriangle className="w-4 h-4" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            {n.type === 'student' ? (
-                                                <p className="text-sm text-gray-800 leading-snug">
-                                                    Novo aluno cadastrado pelo(a) <span className="font-bold">{n.authorName}</span> em {format(parseISO(n.date), "dd/MM/yyyy", { locale: ptBR })}.
+                                {visibleNotifications.map((n) => {
+                                    const isRead = readIds.includes(n.id);
+                                    return (
+                                        <li
+                                            key={n.id}
+                                            onClick={() => handleNotificationClick(n)}
+                                            className={`relative p-4 cursor-pointer transition-colors flex gap-3 group ${isRead ? 'bg-white hover:bg-gray-50' : 'bg-blue-50/50 hover:bg-blue-50'}`}
+                                        >
+                                            <div className="flex-shrink-0 mt-0.5">
+                                                {n.type === 'student' ? (
+                                                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                                        <UserPlus className="w-4 h-4" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center">
+                                                        <AlertTriangle className="w-4 h-4" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 pr-6">
+                                                {n.type === 'student' ? (
+                                                    <p className={`text-sm leading-snug ${isRead ? 'text-gray-600' : 'text-gray-800'}`}>
+                                                        Novo aluno cadastrado pelo(a) <span className="font-bold">{n.authorName}</span> em {format(parseISO(n.date), "dd/MM/yyyy", { locale: ptBR })}.
+                                                    </p>
+                                                ) : (
+                                                    <p className={`text-sm leading-snug ${isRead ? 'text-gray-600' : 'text-gray-800'}`}>
+                                                        Nova pendência - {n.authorRole} - <span className="font-bold text-gray-900">{n.authorName}</span>.
+                                                    </p>
+                                                )}
+                                                <p className={`text-xs mt-1 ${isRead ? 'text-gray-400' : 'text-blue-500 font-medium'}`}>
+                                                    {format(parseISO(n.date), "HH:mm", { locale: ptBR })}
                                                 </p>
-                                            ) : (
-                                                <p className="text-sm text-gray-800 leading-snug">
-                                                    Nova pendência - {n.authorRole} - <span className="font-bold text-gray-900">{n.authorName}</span>.
-                                                </p>
+                                            </div>
+
+                                            {/* Delete Button - Only shows effectively if it's read, but allowing on all on hover is good UX */}
+                                            {isRead && (
+                                                <button
+                                                    onClick={(e) => handleDismiss(e, n.id)}
+                                                    className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 outline-none"
+                                                    title="Excluir notificação"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
                                             )}
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                {format(parseISO(n.date), "HH:mm", { locale: ptBR })}
-                                            </p>
-                                        </div>
-                                    </li>
-                                ))}
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         )}
                     </div>
