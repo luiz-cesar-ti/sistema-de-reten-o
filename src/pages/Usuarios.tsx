@@ -94,6 +94,12 @@ export function Usuarios() {
         const currentPrivileges: string[] = userToUpdate.privileges || [];
         const hasPriv = currentPrivileges.includes(privilege);
 
+        const adminCount = users.filter(u => u.role === 'admin').length;
+        if (hasPriv && privilege === 'admin' && adminCount <= 1) {
+            toast.error('Ação bloqueada: O sistema precisa de pelo menos 1 Administrador Master.');
+            return;
+        }
+
         const newPrivileges = hasPriv
             ? currentPrivileges.filter((p: string) => p !== privilege)
             : [...currentPrivileges, privilege];
@@ -125,6 +131,12 @@ export function Usuarios() {
     const changePrimaryRole = async (userId: string, newRole: string) => {
         const userToUpdate = users.find(u => u.id === userId);
         if (!userToUpdate || userToUpdate.role === newRole) return;
+
+        const adminCount = users.filter(u => u.role === 'admin').length;
+        if (userToUpdate.role === 'admin' && adminCount <= 1) {
+            toast.error('Ação bloqueada: Você não pode rebaixar o último Administrador Master do sistema.');
+            return;
+        }
 
         const newPrivileges = (userToUpdate.privileges || []).filter((p: string) => p !== newRole);
 
@@ -168,6 +180,11 @@ export function Usuarios() {
     };
 
     const handleDeleteClick = (user: UserProfile) => {
+        const adminCount = users.filter(u => u.role === 'admin').length;
+        if (user.role === 'admin' && adminCount <= 1) {
+            toast.error('Ação bloqueada: Você não pode excluir o último Administrador Master.');
+            return;
+        }
         setUserToDelete(user);
         setOpenMenuId(null);
     };
