@@ -26,7 +26,24 @@ export function Alunos() {
 
     useEffect(() => {
         if (!activeUnitId) return;
+
+        // Initial fetch
         fetchStudents();
+
+        // Realtime Subscription
+        const channel = supabase.channel('public:students_page')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'students' },
+                () => {
+                    fetchStudents();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [activeUnitId]);
 
     const fetchStudents = async () => {

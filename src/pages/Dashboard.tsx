@@ -199,24 +199,6 @@ export function Dashboard() {
                 </div>
             </div>
 
-            {/* Banner Pendências */}
-            {(hasPrivilege('diretor') || hasPrivilege('admin') || hasPrivilege('coordenacao')) && metrics.pendentes > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r shadow-sm flex items-center justify-between"
-                    transition={{ repeat: Infinity, duration: 2 }}
-                >
-                    <div className="flex items-center">
-                        <AlertCircle className="text-yellow-600 mr-3 w-6 h-6" />
-                        <p className="text-yellow-800 font-medium">Você tem {metrics.pendentes} motivo(s) aguardando sua aprovação.</p>
-                    </div>
-                    <Link to="/pendencias" className="text-yellow-800 font-bold flex items-center gap-1 hover:underline">
-                        Ver pendências <ArrowRight className="w-4 h-4" />
-                    </Link>
-                </motion.div>
-            )}
-
             {/* Seção 1: Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <MetricCard title="Cancelamentos" value={metrics.cancelamentos} icon={<UserMinus className="w-6 h-6 text-red-600" />} color="bg-red-50" delay={0.1} />
@@ -333,7 +315,7 @@ export function Dashboard() {
                     </div>
                 </motion.div>
             </div>
-        </div>
+        </div >
     );
 }
 
