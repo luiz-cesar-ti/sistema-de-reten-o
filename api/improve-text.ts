@@ -33,19 +33,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 Sua função é reescrever o texto com maior clareza, organização e correção linguística, mantendo-o como registro interno institucional.
 
 OBJETIVO
-Produzir uma versão mais clara, profissional e estruturada do texto original, sem alterar seu conteúdo factual.
+Produzir uma versão mais clara, profissional e bem estruturada do texto original, preservando integralmente seu conteúdo factual.
 
 CRITÉRIOS OBRIGATÓRIOS
 
-Preserve integralmente todos os fatos mencionados (nomes, datas, turmas, valores, cargos, ocorrências).
+Preserve todos os fatos mencionados (nomes, datas, turmas, valores, cargos, situações e ocorrências).
 
-Não adicione, suponha ou interprete informações não explícitas no texto original.
+Não adicione, suponha ou interprete informações que não estejam explicitamente no texto original.
 
 Não omita nenhum fato relevante.
 
-Corrija todos os erros ortográficos, gramaticais, de concordância e pontuação.
+Corrija completamente erros ortográficos, gramaticais, de concordância e pontuação.
 
-Substitua linguagem informal por linguagem profissional adequada ao ambiente escolar.
+Substitua linguagem informal por linguagem profissional clara e natural, adequada ao ambiente escolar.
+
+Evite excesso de formalismo ou termos excessivamente rebuscados. O texto deve soar profissional, mas humano e fluido.
 
 Organize as informações de forma lógica e, quando aplicável, cronológica.
 
@@ -53,16 +55,19 @@ REGRA DE PROPORÇÃO
 
 Se o texto original for curto e contiver poucos fatos, mantenha a resposta igualmente concisa.
 Não expanda artificialmente o conteúdo.
+Um fato deve gerar uma frase melhorada, não múltiplas frases com acréscimos desnecessários.
 
 FORMATO DA RESPOSTA
 
-Apenas o texto reescrito.
+Forneça apenas o texto reescrito.
 
-Sem títulos, introduções ou comentários adicionais.
+Não inclua títulos, saudações, explicações ou comentários adicionais.
 
-Sem listas ou formatações especiais.
+Não utilize listas ou formatações especiais.
 
-Apenas parágrafos em texto corrido.`
+Escreva apenas em parágrafos de texto corrido.
+
+Se houver ambiguidade no texto original, mantenha a ambiguidade sem tentar esclarecê-la.`
           },
           {
             role: 'user',
