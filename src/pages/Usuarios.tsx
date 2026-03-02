@@ -5,6 +5,17 @@ import { Link } from 'react-router-dom';
 import { UserPlus, Shield, User, ShieldCheck, MoreVertical, Eye, Check, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+interface UserProfile {
+    id: string;
+    full_name: string;
+    email: string;
+    role: string;
+    privileges: string[];
+    is_active: boolean;
+    created_at: string;
+    is_deleted: boolean;
+}
+
 const ALL_PRIVILEGES = ['admin', 'diretor', 'coordenacao', 'atendimento'] as const;
 
 const privilegeLabels: Record<string, string> = {
@@ -32,7 +43,7 @@ export function Usuarios() {
     const { activeUnitId, hasPrivilege } = useAuth();
 
     const [loading, setLoading] = useState(true);
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<UserProfile[]>([]);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -64,7 +75,7 @@ export function Usuarios() {
 
             if (error) throw error;
 
-            const profiles = (data || []).map(item => item.profile).filter(p => Boolean(p) && !p.is_deleted);
+            const profiles = (data || []).map(item => (item as any).profile as UserProfile).filter(p => Boolean(p) && !p.is_deleted);
             setUsers(profiles);
         } catch (err) {
             console.error(err);
