@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
@@ -38,6 +39,27 @@ const roleIcons: Record<string, any> = {
     'diretor': ShieldCheck,
     'coordenacao': Eye,
     'atendimento': User
+};
+
+const roleIconColors: Record<string, string> = {
+    'admin': 'text-purple-600',
+    'diretor': 'text-orange-600',
+    'coordenacao': 'text-teal-600',
+    'atendimento': 'text-blue-600'
+};
+
+const roleActiveStyles: Record<string, string> = {
+    'admin': 'bg-purple-50 text-purple-900 border-purple-500 ring-1 ring-purple-500',
+    'diretor': 'bg-orange-50 text-orange-900 border-orange-500 ring-1 ring-orange-500',
+    'coordenacao': 'bg-teal-50 text-teal-900 border-teal-500 ring-1 ring-teal-500',
+    'atendimento': 'bg-blue-50 text-blue-900 border-blue-500 ring-1 ring-blue-500'
+};
+
+const roleToggleColors: Record<string, string> = {
+    'admin': 'bg-purple-500',
+    'diretor': 'bg-orange-500',
+    'coordenacao': 'bg-teal-500',
+    'atendimento': 'bg-blue-500'
 };
 
 export function Usuarios() {
@@ -296,8 +318,8 @@ export function Usuarios() {
             </div>
 
             {/* Modal de Cargo e Privilégios */}
-            {selectedUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {selectedUser && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     {/* Overlay */}
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
 
@@ -326,7 +348,7 @@ export function Usuarios() {
                         <div className="p-6 space-y-6">
                             {/* Cargo Principal */}
                             <div>
-                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Cargo Principal</h4>
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Cargo Principal</h4>
                                 <div className="grid grid-cols-2 gap-2">
                                     {ALL_PRIVILEGES.map(role => {
                                         const isCurrentRole = selectedUser.role === role;
@@ -336,13 +358,13 @@ export function Usuarios() {
                                                 key={`role-${role}`}
                                                 onClick={() => { if (!isCurrentRole) changePrimaryRole(selectedUser.id, role); }}
                                                 className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${isCurrentRole
-                                                    ? 'border-objetivo-blue bg-blue-50 text-objetivo-blue shadow-sm'
-                                                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                                    ? roleActiveStyles[role] || 'border-objetivo-blue bg-blue-50 text-objetivo-blue shadow-sm'
+                                                    : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                                                     }`}
                                             >
-                                                <Icon className={`w-4 h-4 ${isCurrentRole ? 'text-objetivo-blue' : 'text-gray-400'}`} />
+                                                <Icon className={`w-4 h-4 ${isCurrentRole ? roleIconColors[role] || 'text-objetivo-blue' : roleIconColors[role] || 'text-gray-400'}`} />
                                                 <span className="flex-1 text-left">{privilegeLabels[role]}</span>
-                                                {isCurrentRole && <Check className="w-4 h-4 text-objetivo-blue" />}
+                                                {isCurrentRole && <Check className={`w-4 h-4 ${roleIconColors[role] || 'text-objetivo-blue'}`} />}
                                             </button>
                                         );
                                     })}
@@ -354,7 +376,7 @@ export function Usuarios() {
 
                             {/* Privilégios Extras */}
                             <div>
-                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Privilégios Extras</h4>
+                                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Privilégios Extras</h4>
                                 <div className="space-y-2">
                                     {ALL_PRIVILEGES.map(priv => {
                                         if (priv === selectedUser.role) return null;
@@ -367,11 +389,11 @@ export function Usuarios() {
                                                 className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all"
                                             >
                                                 <span className="flex items-center gap-2.5">
-                                                    <Icon className="w-4 h-4 text-gray-400" />
-                                                    <span className="text-sm text-gray-700">{privilegeLabels[priv]}</span>
+                                                    <Icon className={`w-4 h-4 ${roleIconColors[priv] || 'text-gray-400'}`} />
+                                                    <span className="text-sm font-medium text-gray-900">{privilegeLabels[priv]}</span>
                                                 </span>
                                                 {/* Toggle switch */}
-                                                <div className={`relative w-10 h-6 rounded-full transition-colors ${isActive ? 'bg-green-500' : 'bg-gray-300'
+                                                <div className={`relative w-10 h-6 rounded-full transition-colors ${isActive ? roleToggleColors[priv] || 'bg-green-500' : 'bg-gray-300'
                                                     }`}>
                                                     <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${isActive ? 'translate-x-4' : 'translate-x-0'
                                                         }`} />
@@ -393,7 +415,8 @@ export function Usuarios() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             <DeleteUserModal
