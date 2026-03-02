@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from 'react';
+import React, { useState, forwardRef, useEffect, useRef } from 'react';
 import { Sparkles, RefreshCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -12,6 +12,18 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
     const { value = '', onChange, className = '', asDiv = false, ...rest } = props;
     const [isLoading, setIsLoading] = useState(false);
     const [originalText, setOriginalText] = useState<string | null>(null);
+
+    // Ref interna para manter a referência atual da div editável
+    const internalDivRef = useRef<HTMLDivElement>(null);
+
+    // Sincroniza o prop value com o innerHTML somente se vier "de fora" (ex: limpar formatação ou botão voltar)
+    useEffect(() => {
+        if (asDiv && internalDivRef.current) {
+            if (internalDivRef.current.innerHTML !== value) {
+                internalDivRef.current.innerHTML = value;
+            }
+        }
+    }, [value, asDiv]);
 
     const handleImproveText = async () => {
         if (value.trim().length < 20) return;
@@ -95,10 +107,19 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
             {asDiv ? (
                 <div
                     {...(rest as any)}
-                    ref={ref as React.RefObject<HTMLDivElement>}
+                    // Passa tanto a ref externa quanto a ref interna
+                    ref={(node) => {
+                        internalDivRef.current = node as HTMLDivElement;
+                        if (typeof ref === 'function') {
+                            ref(node);
+                        } else if (ref) {
+                            (ref as React.MutableRefObject<HTMLDivElement | null>).current = node as HTMLDivElement;
+                        }
+                    }}
                     contentEditable
                     onInput={handleDivInput}
-                    dangerouslySetInnerHTML={{ __html: value }}
+                    // Removemos dangerouslySetInnerHTML, pois agora o valor inicial e 
+                    // a sincronização externa estão sendo gerenciados pelo useEffect.
                     className={`${className} min-h-[100px] outline-none`}
                     suppressContentEditableWarning={true}
                 />
