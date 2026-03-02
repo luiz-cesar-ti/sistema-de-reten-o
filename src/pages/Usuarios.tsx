@@ -82,8 +82,8 @@ export function Usuarios() {
         const currentPrivileges: string[] = userToUpdate.privileges || [];
         const hasPriv = currentPrivileges.includes(privilege);
 
-        const adminCount = users.filter(u => u.role === 'admin').length;
-        if (hasPriv && privilege === 'admin' && adminCount <= 1) {
+        const totalAdmins = users.filter(u => u.role === 'admin' || (u.privileges || []).includes('admin')).length;
+        if (hasPriv && privilege === 'admin' && totalAdmins <= 1) {
             toast.error('Ação bloqueada: O sistema precisa de pelo menos 1 Administrador Master.');
             return;
         }
@@ -121,8 +121,11 @@ export function Usuarios() {
         const userToUpdate = users.find(u => u.id === userId);
         if (!userToUpdate || userToUpdate.role === newRole) return;
 
-        const adminCount = users.filter(u => u.role === 'admin').length;
-        if (userToUpdate.role === 'admin' && adminCount <= 1) {
+        const totalAdmins = users.filter(u => u.role === 'admin' || (u.privileges || []).includes('admin')).length;
+        const isCurrentlyAdmin = userToUpdate.role === 'admin' || (userToUpdate.privileges || []).includes('admin');
+        const willBeAdmin = newRole === 'admin' || (userToUpdate.privileges || []).includes('admin');
+
+        if (isCurrentlyAdmin && !willBeAdmin && totalAdmins <= 1) {
             toast.error('Ação bloqueada: Você não pode rebaixar o último Administrador Master do sistema.');
             return;
         }
@@ -170,8 +173,10 @@ export function Usuarios() {
     };
 
     const handleDeleteClick = (user: UserProfile) => {
-        const adminCount = users.filter(u => u.role === 'admin').length;
-        if (user.role === 'admin' && adminCount <= 1) {
+        const totalAdmins = users.filter(u => u.role === 'admin' || (u.privileges || []).includes('admin')).length;
+        const isCurrentlyAdmin = user.role === 'admin' || (user.privileges || []).includes('admin');
+
+        if (isCurrentlyAdmin && totalAdmins <= 1) {
             toast.error('Ação bloqueada: Você não pode excluir o último Administrador Master.');
             return;
         }
@@ -331,8 +336,8 @@ export function Usuarios() {
                                                 key={`role-${role}`}
                                                 onClick={() => { if (!isCurrentRole) changePrimaryRole(selectedUser.id, role); }}
                                                 className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${isCurrentRole
-                                                        ? 'border-objetivo-blue bg-blue-50 text-objetivo-blue shadow-sm'
-                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                                    ? 'border-objetivo-blue bg-blue-50 text-objetivo-blue shadow-sm'
+                                                    : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
                                                     }`}
                                             >
                                                 <Icon className={`w-4 h-4 ${isCurrentRole ? 'text-objetivo-blue' : 'text-gray-400'}`} />
