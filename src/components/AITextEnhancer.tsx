@@ -26,7 +26,8 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
     }, [value, asDiv]);
 
     const handleImproveText = async () => {
-        if (value.trim().length < 20) return;
+        const plainTextForCheck = asDiv ? value.replace(/<[^>]*>?/gm, '') : value;
+        if (plainTextForCheck.trim().length < 150) return;
 
         const original = value;
         setOriginalText(original);
@@ -100,7 +101,8 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
 
     // Remove tags HTML para checar o tamanho se for Div
     const plainText = asDiv ? value.replace(/<[^>]*>?/gm, '') : value;
-    const showImproveButton = plainText.trim().length >= 20;
+    const charsNeeded = 150 - plainText.trim().length;
+    const showImproveButton = charsNeeded <= 0;
 
     return (
         <div className="w-full flex flex-col gap-3">
@@ -135,7 +137,12 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
             )}
 
             {/* AI Improve Button / Loader Area */}
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-3">
+                {!isLoading && charsNeeded > 0 && plainText.trim().length > 0 && (
+                    <span className="text-xs text-gray-500 font-medium">
+                        Faltam {charsNeeded} caracteres para ativar Melhoria com IA.
+                    </span>
+                )}
                 {isLoading ? (
                     <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-400 rounded-md shadow-sm select-none transition-all">
                         <RefreshCcw className="w-4 h-4 animate-spin" />
