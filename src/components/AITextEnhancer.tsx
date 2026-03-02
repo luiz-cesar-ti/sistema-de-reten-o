@@ -16,6 +16,8 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
     const handleImproveText = async () => {
         if (value.trim().length < 20) return;
 
+        const original = value;
+        setOriginalText(original);
         setIsLoading(true);
         try {
             // Usa a rota da Vercel Function
@@ -34,18 +36,22 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
             const data = await response.json();
 
             if (data.improvedText) {
-                setOriginalText(value);
+                console.log('Texto melhorado recebido:', data.improvedText);
+
                 // Dispara o onChange sintético injetando o name para o React Hook Form não se perder
                 const fakeEvent = {
+                    type: 'change',
                     target: {
                         value: data.improvedText,
                         name: rest.name
                     }
                 } as unknown as React.ChangeEvent<HTMLTextAreaElement>;
+
                 onChange(fakeEvent);
             }
         } catch (error) {
             console.error('AI Enhancement Error:', error);
+            setOriginalText(null);
             toast.error('Não foi possível melhorar o texto. Tente novamente.');
         } finally {
             setIsLoading(false);
