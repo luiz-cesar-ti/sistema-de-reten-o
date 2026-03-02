@@ -9,6 +9,7 @@ import { Check, X, ArrowLeft, Plus, Clock, ShieldCheck, UserMinus, Edit2, Save, 
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { AITextEnhancer } from '../components/AITextEnhancer';
 
 export function AlunoDetail() {
     const { id } = useParams<{ id: string }>();
@@ -465,9 +466,9 @@ export function AlunoDetail() {
                                 {coordForm.spoke_with_coordination === true && coordForm.coordination_reversed === false && (
                                     <div>
                                         <p className="font-medium text-gray-700 mb-1">Motivo da não reversão:</p>
-                                        <textarea
+                                        <AITextEnhancer
                                             value={coordForm.coordination_no_reversal_reason || ''}
-                                            onChange={e => setCoordForm({ ...coordForm, coordination_no_reversal_reason: e.target.value })}
+                                            onChange={(e: any) => setCoordForm({ ...coordForm, coordination_no_reversal_reason: e.target.value })}
                                             className="w-full border border-gray-300 rounded-md p-2 text-sm focus:border-objetivo-blue focus:ring-1 focus:ring-objetivo-blue"
                                             rows={3}
                                             placeholder="Descreva..."
@@ -583,12 +584,12 @@ export function AlunoDetail() {
                                         </button>
                                     </div>
 
-                                    <div
+                                    <AITextEnhancer
                                         id="reason-textarea"
-                                        contentEditable
-                                        onInput={(e) => setNewReasonText(e.currentTarget.innerHTML)}
-                                        className="w-full min-h-[100px] rounded-md border border-gray-300 p-3 text-sm focus:outline-none focus:ring-1 focus:ring-objetivo-blue focus:border-objetivo-blue bg-white"
-                                        suppressContentEditableWarning={true}
+                                        asDiv={true}
+                                        value={newReasonText}
+                                        onChange={(e: any) => setNewReasonText(e.target.value)}
+                                        className="w-full rounded-md border border-gray-300 p-3 text-sm focus:outline-none focus:ring-1 focus:ring-objetivo-blue focus:border-objetivo-blue bg-white"
                                     />
                                     <div className="flex justify-between items-center mt-3">
                                         <span className="text-xs text-gray-500 text-right w-full mb-2 block">Digite o seu texto e selecione partes dele antes de clicar nas cores parar destacá-lo.</span>

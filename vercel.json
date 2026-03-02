@@ -1,4 +1,9 @@
 {
+    "functions": {
+        "api/improve-text.ts": {
+            "maxDuration": 30
+        }
+    },
     "rewrites": [
         {
             "source": "/(.*)",
