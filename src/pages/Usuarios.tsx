@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
-import { UserPlus, Shield, User, ShieldCheck, MoreVertical, Eye, Check, Trash2 } from 'lucide-react';
+import { UserPlus, Shield, User, ShieldCheck, Eye, Check, Trash2, X, Settings2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DeleteUserModal } from '../components/DeleteUserModal';
 
@@ -45,25 +45,13 @@ export function Usuarios() {
 
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState<UserProfile[]>([]);
-    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!activeUnitId) return;
         fetchUsers();
     }, [activeUnitId]);
-
-    // Close menu on outside click
-    useEffect(() => {
-        const handleClick = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                setOpenMenuId(null);
-            }
-        };
-        document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
-    }, []);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -116,6 +104,7 @@ export function Usuarios() {
             setUsers(prev => prev.map(u =>
                 u.id === userId ? { ...u, privileges: newPrivileges } : u
             ));
+            setSelectedUser(prev => prev?.id === userId ? { ...prev, privileges: newPrivileges } : prev);
 
             toast.success(
                 hasPriv
@@ -151,6 +140,7 @@ export function Usuarios() {
             setUsers(prev => prev.map(u =>
                 u.id === userId ? { ...u, role: newRole, privileges: newPrivileges } : u
             ));
+            setSelectedUser(prev => prev?.id === userId ? { ...prev, role: newRole, privileges: newPrivileges } : prev);
             toast.success(`Cargo principal alterado para "${privilegeLabels[newRole]}"`);
         } catch (err) {
             console.error(err);
@@ -171,7 +161,7 @@ export function Usuarios() {
 
             setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
             toast.success('Usuário apagado com sucesso');
-            setOpenMenuId(null);
+            setSelectedUser(null);
             setUserToDelete(null);
         } catch (err) {
             console.error(err);
@@ -186,7 +176,7 @@ export function Usuarios() {
             return;
         }
         setUserToDelete(user);
-        setOpenMenuId(null);
+        setSelectedUser(null);
     };
 
     const unificados: Record<string, any> = {};
@@ -273,67 +263,23 @@ export function Usuarios() {
                                                     {u.is_active ? 'Ativo' : 'Inativo'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleDeleteClick(u)}
-                                                    className="text-red-400 hover:text-red-700 transition-colors p-1 rounded-md hover:bg-red-50"
-                                                    title="Excluir Usuário"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => setOpenMenuId(openMenuId === u.id ? null : u.id)}
-                                                    className="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-md hover:bg-gray-100"
-                                                    title="Opções de Cargo e Privilégios"
-                                                >
-                                                    <MoreVertical className="w-5 h-5" />
-                                                </button>
-
-                                                {openMenuId === u.id && (
-                                                    <div ref={menuRef} className="absolute right-12 top-10 z-50 w-64 bg-white border border-gray-200 rounded-lg shadow-xl py-2 text-left">
-                                                        <p className="px-4 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Cargo Principal</p>
-                                                        {ALL_PRIVILEGES.map(role => {
-                                                            const isCurrentRole = u.role === role;
-                                                            return (
-                                                                <button
-                                                                    key={`role-${role}`}
-                                                                    onClick={() => { if (!isCurrentRole) changePrimaryRole(u.id, role); }}
-                                                                    className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between ${isCurrentRole ? 'bg-blue-50 cursor-default' : 'hover:bg-gray-50'}`}
-                                                                >
-                                                                    <span className="flex items-center gap-2">
-                                                                        {(() => { const Icon = roleIcons[role] || User; return <Icon className={`w-4 h-4 ${isCurrentRole ? 'text-objetivo-blue' : 'text-gray-400'}`} />; })()}
-                                                                        <span className={isCurrentRole ? 'text-objetivo-blue font-medium' : 'text-gray-700'}>{privilegeLabels[role]}</span>
-                                                                    </span>
-                                                                    {isCurrentRole && <Check className="w-4 h-4 text-objetivo-blue" />}
-                                                                </button>
-                                                            );
-                                                        })}
-
-                                                        <div className="border-t border-gray-100 my-1"></div>
-                                                        <p className="px-4 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Privilégios Extras</p>
-                                                        {ALL_PRIVILEGES.map(priv => {
-                                                            if (priv === u.role) return null; // Don't show the user's own role
-                                                            const isActive = (u.privileges || []).includes(priv);
-                                                            return (
-                                                                <button
-                                                                    key={priv}
-                                                                    onClick={() => togglePrivilege(u.id, priv)}
-                                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center justify-between"
-                                                                >
-                                                                    <span className="flex items-center gap-2">
-                                                                        {(() => { const Icon = roleIcons[priv] || User; return <Icon className="w-4 h-4 text-gray-400" />; })()}
-                                                                        {privilegeLabels[priv]}
-                                                                    </span>
-                                                                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                                                        {isActive ? 'Ativo' : 'Inativo'}
-                                                                    </span>
-                                                                </button>
-                                                            );
-                                                        })}
-
-                                                    </div>
-                                                )}
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleDeleteClick(u)}
+                                                        className="text-red-400 hover:text-red-700 transition-colors p-1.5 rounded-md hover:bg-red-50"
+                                                        title="Excluir Usuário"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSelectedUser(u)}
+                                                        className="text-gray-500 hover:text-objetivo-blue transition-colors p-1.5 rounded-md hover:bg-blue-50"
+                                                        title="Gerenciar Cargo e Privilégios"
+                                                    >
+                                                        <Settings2 className="w-5 h-5" />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -343,6 +289,107 @@ export function Usuarios() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Cargo e Privilégios */}
+            {selectedUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    {/* Overlay */}
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
+
+                    {/* Modal */}
+                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-[#0d1b2a] to-[#1b2d45] px-6 py-5 text-white">
+                            <button
+                                onClick={() => setSelectedUser(null)}
+                                className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center font-bold text-xl">
+                                    {selectedUser.full_name?.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold">{selectedUser.full_name}</h3>
+                                    <p className="text-sm text-white/60">{selectedUser.email}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 space-y-6">
+                            {/* Cargo Principal */}
+                            <div>
+                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Cargo Principal</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {ALL_PRIVILEGES.map(role => {
+                                        const isCurrentRole = selectedUser.role === role;
+                                        const Icon = roleIcons[role] || User;
+                                        return (
+                                            <button
+                                                key={`role-${role}`}
+                                                onClick={() => { if (!isCurrentRole) changePrimaryRole(selectedUser.id, role); }}
+                                                className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${isCurrentRole
+                                                        ? 'border-objetivo-blue bg-blue-50 text-objetivo-blue shadow-sm'
+                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                <Icon className={`w-4 h-4 ${isCurrentRole ? 'text-objetivo-blue' : 'text-gray-400'}`} />
+                                                <span className="flex-1 text-left">{privilegeLabels[role]}</span>
+                                                {isCurrentRole && <Check className="w-4 h-4 text-objetivo-blue" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-gray-100" />
+
+                            {/* Privilégios Extras */}
+                            <div>
+                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Privilégios Extras</h4>
+                                <div className="space-y-2">
+                                    {ALL_PRIVILEGES.map(priv => {
+                                        if (priv === selectedUser.role) return null;
+                                        const isActive = (selectedUser.privileges || []).includes(priv);
+                                        const Icon = roleIcons[priv] || User;
+                                        return (
+                                            <button
+                                                key={priv}
+                                                onClick={() => togglePrivilege(selectedUser.id, priv)}
+                                                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all"
+                                            >
+                                                <span className="flex items-center gap-2.5">
+                                                    <Icon className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-sm text-gray-700">{privilegeLabels[priv]}</span>
+                                                </span>
+                                                {/* Toggle switch */}
+                                                <div className={`relative w-10 h-6 rounded-full transition-colors ${isActive ? 'bg-green-500' : 'bg-gray-300'
+                                                    }`}>
+                                                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${isActive ? 'translate-x-4' : 'translate-x-0'
+                                                        }`} />
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <button
+                                onClick={() => setSelectedUser(null)}
+                                className="w-full py-2.5 bg-[#0d1b2a] hover:bg-[#1b2d45] text-white font-semibold rounded-xl transition-colors"
+                            >
+                                Concluir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <DeleteUserModal
                 isOpen={!!userToDelete}
