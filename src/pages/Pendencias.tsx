@@ -8,12 +8,14 @@ import { Check, X, AlertCircle, Eye, UserMinus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export function Pendencias() {
     const { profile, activeUnitId, logAction } = useAuth();
 
     const [loading, setLoading] = useState(true);
     const [pendencias, setPendencias] = useState<any[]>([]);
+    const [confirmActionData, setConfirmActionData] = useState<{ id: string, action: 'approved' | 'rejected' } | null>(null);
 
     useEffect(() => {
         if (!activeUnitId) return;
@@ -44,9 +46,14 @@ export function Pendencias() {
         }
     };
 
-    const handleAction = async (id: string, action: 'approved' | 'rejected') => {
-        if (!profile) return;
-        if (!window.confirm(`Confirma a ${action === 'approved' ? 'APROVAÇÃO' : 'REJEIÇÃO'} deste motivo?`)) return;
+    const handleActionClick = (id: string, action: 'approved' | 'rejected') => {
+        setConfirmActionData({ id, action });
+    };
+
+    const confirmAction = async () => {
+        if (!profile || !confirmActionData) return;
+
+        const { id, action } = confirmActionData;
 
         try {
             const pendingItem = pendencias.find(p => p.id === id);
@@ -88,6 +95,8 @@ export function Pendencias() {
         } catch (err) {
             console.error(err);
             toast.error('Erro ao aplicar ação.');
+        } finally {
+            setConfirmActionData(null);
         }
     };
 
@@ -186,13 +195,13 @@ export function Pendencias() {
                                 <div className="md:col-span-1 flex flex-col items-end justify-center gap-3">
                                     <div className="flex w-full sm:w-auto gap-2">
                                         <button
-                                            onClick={() => handleAction(item.id, 'rejected')}
+                                            onClick={() => handleActionClick(item.id, 'rejected')}
                                             className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-4 py-2 border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors"
                                         >
                                             <X className="w-4 h-4" /> Rejeitar
                                         </button>
                                         <button
-                                            onClick={() => handleAction(item.id, 'approved')}
+                                            onClick={() => handleActionClick(item.id, 'approved')}
                                             className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors shadow-sm"
                                         >
                                             <Check className="w-4 h-4" /> Aprovar
@@ -207,6 +216,22 @@ export function Pendencias() {
                     </AnimatePresence>
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={!!confirmActionData}
+                onClose={() => setConfirmActionData(null)}
+                onConfirm={confirmAction}
+                title={confirmActionData?.action === 'approved' ? 'Aprovar Solicitação' : 'Rejeitar Solicitação'}
+                message={
+                    <>
+                        Confirma a <strong className={confirmActionData?.action === 'approved' ? 'text-green-600' : 'text-red-600'}>
+                            {confirmActionData?.action === 'approved' ? 'APROVAÇÃO' : 'REJEIÇÃO'}
+                        </strong> deste motivo?
+                    </>
+                }
+                confirmText={confirmActionData?.action === 'approved' ? 'Sim, aprovar' : 'Sim, rejeitar'}
+                variant={confirmActionData?.action === 'approved' ? 'info' : 'danger'}
+            />
         </div>
     );
 }

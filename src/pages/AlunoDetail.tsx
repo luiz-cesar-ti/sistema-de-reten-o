@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { Check, X, ArrowLeft, Plus, Clock, ShieldCheck, UserMinus, Edit2, Save, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export function AlunoDetail() {
     const { id } = useParams<{ id: string }>();
@@ -21,6 +22,9 @@ export function AlunoDetail() {
     const [showAddReason, setShowAddReason] = useState(false);
     const [newReasonText, setNewReasonText] = useState('');
     const [addingReason, setAddingReason] = useState(false);
+
+    const [confirmReasonData, setConfirmReasonData] = useState<{ id: string, action: 'approved' | 'rejected' } | null>(null);
+    const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
     const handleFormat = (command: string, arg?: string | undefined) => {
         const editor = document.getElementById('reason-textarea');
@@ -174,10 +178,15 @@ export function AlunoDetail() {
         }
     };
 
-    const handleReasonAction = async (reasonId: string, action: 'approved' | 'rejected') => {
+    const handleReasonAction = (reasonId: string, action: 'approved' | 'rejected') => {
         if (!profile || (!hasPrivilege('admin') && !hasPrivilege('diretor'))) return;
+        setConfirmReasonData({ id: reasonId, action });
+    };
 
-        if (!window.confirm(`Tem certeza que deseja ${action === 'approved' ? 'APROVAR' : 'REJEITAR'} este motivo?`)) return;
+    const confirmReasonAction = async () => {
+        if (!confirmReasonData || !profile || (!hasPrivilege('admin') && !hasPrivilege('diretor'))) return;
+
+        const { id: reasonId, action } = confirmReasonData;
 
         try {
             const { error } = await supabase
@@ -199,15 +208,18 @@ export function AlunoDetail() {
         } catch (err: any) {
             console.error(err);
             toast.error('Erro ao atualizar status.');
+        } finally {
+            setConfirmReasonData(null);
         }
     };
 
-    const handleDeleteStudent = async () => {
+    const handleDeleteStudent = () => {
         if (!hasPrivilege('admin')) return;
+        setShowConfirmDelete(true);
+    };
 
-        if (!window.confirm("ATENÇÃO: Tem certeza que deseja apagar permanentemente este aluno? O registro ficará oculto para todos os usuários mas permanecerá no banco de dados.")) {
-            return;
-        }
+    const confirmDeleteStudent = async () => {
+        if (!hasPrivilege('admin')) return;
 
         try {
             const { error } = await supabase
@@ -223,6 +235,8 @@ export function AlunoDetail() {
         } catch (err: any) {
             console.error(err);
             toast.error('Erro ao excluir aluno.');
+        } finally {
+            setShowConfirmDelete(false);
         }
     };
 
@@ -671,6 +685,33 @@ export function AlunoDetail() {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={!!confirmReasonData}
+                onClose={() => setConfirmReasonData(null)}
+                onConfirm={confirmReasonAction}
+                title={confirmReasonData?.action === 'approved' ? 'Aprovar Motivo' : 'Rejeitar Motivo'}
+                message={
+                    <>
+                        Tem certeza que deseja <strong className={confirmReasonData?.action === 'approved' ? 'text-green-600' : 'text-red-600'}>
+                            {confirmReasonData?.action === 'approved' ? 'APROVAR' : 'REJEITAR'}
+                        </strong> este motivo?
+                    </>
+                }
+                confirmText={confirmReasonData?.action === 'approved' ? 'Sim, aprovar' : 'Sim, rejeitar'}
+                variant={confirmReasonData?.action === 'approved' ? 'info' : 'danger'}
+            />
+
+            <ConfirmModal
+                isOpen={showConfirmDelete}
+                onClose={() => setShowConfirmDelete(false)}
+                onConfirm={confirmDeleteStudent}
+                title="Excluir Aluno"
+                message={<>Tem certeza que deseja apagar permanentemente o registro de <strong>{student.full_name}</strong>?</>}
+                alertText="O registro ficará oculto em todo o sistema, mas permanecerá no banco de dados para segurança."
+                confirmText="Sim, excluir aluno"
+                variant="danger"
+            />
         </div >
     );
 }
