@@ -219,7 +219,7 @@ export function Usuarios() {
                 ) : unificadosArray.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">Nenhum usuário encontrado na unidade.</div>
                 ) : (
-                    <div className="w-full">
+                    <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>

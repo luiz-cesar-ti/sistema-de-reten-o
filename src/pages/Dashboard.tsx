@@ -171,27 +171,27 @@ export function Dashboard() {
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
-                    <p className="text-lg font-semibold text-objetivo-blue mt-1">Bem-Vindo {activeUnit?.name || ''}</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+                    <p className="text-sm md:text-lg font-semibold text-objetivo-blue mt-1">Bem-Vindo {activeUnit?.name || ''}</p>
                 </div>
 
                 {/* Global Date Filter Component */}
-                <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-100">
-                    <div className="flex flex-col">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-100 w-full sm:w-auto">
+                    <div className="flex flex-col w-full sm:w-auto">
                         <span className="text-xs text-gray-500 font-medium ml-1">Início</span>
                         <input
                             type="date"
-                            className="text-sm border-0 focus:ring-0 p-1 text-gray-700 bg-transparent cursor-pointer"
+                            className="text-sm border-0 focus:ring-0 p-1 text-gray-700 bg-transparent cursor-pointer w-full"
                             value={dateRange.start}
                             onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
                         />
                     </div>
-                    <span className="text-gray-300">-</span>
-                    <div className="flex flex-col">
+                    <span className="text-gray-300 hidden sm:block">-</span>
+                    <div className="flex flex-col w-full sm:w-auto">
                         <span className="text-xs text-gray-500 font-medium ml-1">Fim</span>
                         <input
                             type="date"
-                            className="text-sm border-0 focus:ring-0 p-1 text-gray-700 bg-transparent cursor-pointer"
+                            className="text-sm border-0 focus:ring-0 p-1 text-gray-700 bg-transparent cursor-pointer w-full"
                             value={dateRange.end}
                             onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
                         />
@@ -300,10 +300,11 @@ export function Dashboard() {
                                         <p className="text-sm font-semibold text-gray-900 truncate">{s.full_name}</p>
                                         <p className="text-xs text-gray-500">{levelsMap[s.education_level]} • {s.serie}</p>
                                     </div>
-                                    <div className="flex items-center gap-4 flex-shrink-0">
-                                        <div className={`text-xs font-medium border px-2 py-1 rounded ${s.status === 'cancelamento' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-orange-50 text-orange-600 border-orange-100'
+                                    <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+                                        <div className={`text-xs font-medium border px-2 py-1 rounded truncate max-w-[100px] md:max-w-none ${s.status === 'cancelamento' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-orange-50 text-orange-600 border-orange-100'
                                             }`}>
-                                            {s.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}
+                                            <span className="hidden md:inline">{s.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}</span>
+                                            <span className="md:hidden">{s.status === 'cancelamento' ? 'Cancel.' : 'Transf.'}</span>
                                         </div>
                                         <Link to={`/alunos/${s.id}`} className="p-1 text-gray-400 hover:text-objetivo-blue transition-colors">
                                             <ArrowRight className="w-5 h-5" />

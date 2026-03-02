@@ -1,24 +1,42 @@
 import { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, LayoutDashboard, Users, FileWarning, UserCog, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, FileWarning, UserCog, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
 import { NotificationBell } from '../components/NotificationBell';
 
 export function MainLayout() {
     const { profile, units, activeUnitId, setActiveUnitId, signOut, hasPrivilege } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans">
+        <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
+            {/* Mobile Overlay */}
+            {isMobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-20 md:hidden"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
             <aside
-                className={`relative bg-[#0d1b2a] text-white flex flex-col transition-all duration-300 ease-in-out z-20 ${isCollapsed ? 'w-20' : 'w-64'
-                    }`}
+                className={`fixed inset-y-0 left-0 bg-[#0d1b2a] text-white flex flex-col transition-all duration-300 ease-in-out z-30 transform 
+                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
+                md:relative md:translate-x-0 
+                ${isCollapsed ? 'md:w-20' : 'md:w-64'} w-64`}
             >
-                {/* Collapse Toggle Button */}
+                {/* Mobile Close Button */}
+                <button
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="absolute top-4 right-4 text-white/70 hover:text-white md:hidden"
+                >
+                    <X className="w-6 h-6" />
+                </button>
+                {/* Collapse Toggle Button (Desktop Only) */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute -right-3 top-8 bg-gradient-to-r from-yellow-400 to-yellow-500 text-[#0d1b2a] rounded-full p-1 shadow-md hover:scale-110 transition-transform z-50 flex items-center justify-center border-2 border-[#0d1b2a]"
+                    className="hidden md:flex absolute -right-3 top-8 bg-gradient-to-r from-yellow-400 to-yellow-500 text-[#0d1b2a] rounded-full p-1 shadow-md hover:scale-110 transition-transform z-50 items-center justify-center border-2 border-[#0d1b2a]"
                 >
                     {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                 </button>
@@ -42,41 +60,45 @@ export function MainLayout() {
                 <nav className="flex-1 px-3 space-y-1.5 mt-4 hide-scrollbar overflow-y-auto">
                     <NavLink
                         to="/dashboard"
-                        className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-3 rounded-lg transition-all duration-200 group ${isActive ? 'bg-white/10 text-white shadow-sm border-l-4 border-yellow-400' : 'text-blue-200/60 hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={({ isActive }) => `flex items-center ${isCollapsed ? 'md:justify-center' : 'gap-3'} px-3 py-3 rounded-lg transition-all duration-200 group ${isActive ? 'bg-white/10 text-white shadow-sm border-l-4 border-yellow-400' : 'text-blue-200/60 hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}
                         title="Dashboard"
                     >
                         <LayoutDashboard className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                        {!isCollapsed && <span className="font-medium">Dashboard</span>}
+                        <span className={`font-medium ${isCollapsed ? 'md:hidden' : 'block'}`}>Dashboard</span>
                     </NavLink>
 
                     <NavLink
                         to="/alunos"
-                        className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-3 rounded-lg transition-all duration-200 group ${isActive ? 'bg-white/10 text-white shadow-sm border-l-4 border-yellow-400' : 'text-blue-200/60 hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={({ isActive }) => `flex items-center ${isCollapsed ? 'md:justify-center' : 'gap-3'} px-3 py-3 rounded-lg transition-all duration-200 group ${isActive ? 'bg-white/10 text-white shadow-sm border-l-4 border-yellow-400' : 'text-blue-200/60 hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}
                         title="Alunos"
                     >
                         <Users className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                        {!isCollapsed && <span className="font-medium">Alunos</span>}
+                        <span className={`font-medium ${isCollapsed ? 'md:hidden' : 'block'}`}>Alunos</span>
                     </NavLink>
 
                     {(hasPrivilege('admin') || hasPrivilege('diretor') || hasPrivilege('coordenacao')) && (
                         <NavLink
                             to="/pendencias"
-                            className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-3 rounded-lg transition-all duration-200 group ${isActive ? 'bg-white/10 text-white shadow-sm border-l-4 border-yellow-400' : 'text-blue-200/60 hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={({ isActive }) => `flex items-center ${isCollapsed ? 'md:justify-center' : 'gap-3'} px-3 py-3 rounded-lg transition-all duration-200 group ${isActive ? 'bg-white/10 text-white shadow-sm border-l-4 border-yellow-400' : 'text-blue-200/60 hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}
                             title="Pendências"
                         >
                             <FileWarning className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                            {!isCollapsed && <span className="font-medium">Pendências</span>}
+                            <span className={`font-medium ${isCollapsed ? 'md:hidden' : 'block'}`}>Pendências</span>
                         </NavLink>
                     )}
 
                     {hasPrivilege('admin') && (
                         <NavLink
                             to="/usuarios"
-                            className={({ isActive }) => `flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-3 rounded-lg transition-all duration-200 group ${isActive ? 'bg-white/10 text-white shadow-sm border-l-4 border-yellow-400' : 'text-blue-200/60 hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={({ isActive }) => `flex items-center ${isCollapsed ? 'md:justify-center' : 'gap-3'} px-3 py-3 rounded-lg transition-all duration-200 group ${isActive ? 'bg-white/10 text-white shadow-sm border-l-4 border-yellow-400' : 'text-blue-200/60 hover:bg-white/5 hover:text-white border-l-4 border-transparent'}`}
                             title="Usuários"
                         >
                             <UserCog className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                            {!isCollapsed && <span className="font-medium">Usuários</span>}
+                            <span className={`font-medium ${isCollapsed ? 'md:hidden' : 'block'}`}>Usuários</span>
                         </NavLink>
                     )}
                 </nav>
@@ -124,19 +146,27 @@ export function MainLayout() {
             <main className="flex-1 flex flex-col overflow-hidden">
                 {/* Header */}
                 <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        {/* Hamburger Menu (Mobile Only) */}
+                        <button
+                            onClick={() => setIsMobileMenuOpen(true)}
+                            className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            <Menu className="w-6 h-6" />
+                        </button>
+
                         {units.length > 1 ? (
                             <select
                                 value={activeUnitId || ''}
                                 onChange={(e) => setActiveUnitId(e.target.value)}
-                                className="block w-64 rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-objetivo-blue sm:text-sm sm:leading-6"
+                                className="block w-40 md:w-64 rounded-md border-0 py-1.5 pl-3 pr-8 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-objetivo-blue text-xs md:text-sm sm:leading-6 truncate"
                             >
                                 {units.map((u) => (
                                     <option key={u.id} value={u.id}>{u.name}</option>
                                 ))}
                             </select>
                         ) : (
-                            <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-md">
+                            <span className="text-xs md:text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1.5 rounded-md truncate max-w-[150px] md:max-w-none">
                                 {units[0]?.name || 'Carregando unidade...'}
                             </span>
                         )}

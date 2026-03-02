@@ -78,21 +78,21 @@ export function Login() {
 
     return (
         <div className="flex min-h-screen bg-[#0d1b2a] items-center justify-center font-sans p-4">
-            <div className="w-full max-w-lg bg-[#1b263b]/80 backdrop-blur-sm rounded-2xl shadow-2xl p-12 border border-white/5">
+            <div className="w-full max-w-lg bg-[#1b263b]/80 backdrop-blur-sm rounded-2xl shadow-2xl p-6 md:p-12 border border-white/5">
                 {/* Branding */}
-                <div className="flex flex-col items-center mb-10">
+                <div className="flex flex-col items-center mb-6 md:mb-10">
                     <img
                         src="/logo-objetivo.png"
                         alt="Objetivo Logo"
-                        className="h-24 object-contain mb-6 drop-shadow-lg"
+                        className="h-16 md:h-24 object-contain mb-4 md:mb-6 drop-shadow-lg"
                     />
-                    <h1 className="text-3xl font-black text-white uppercase tracking-widest text-center leading-tight">
+                    <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-widest text-center leading-tight">
                         Sistema de
                     </h1>
-                    <h1 className="text-4xl font-black uppercase tracking-widest text-center leading-tight bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent">
+                    <h1 className="text-3xl md:text-4xl font-black uppercase tracking-widest text-center leading-tight bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent">
                         Retenção
                     </h1>
-                    <p className="mt-4 text-xs text-blue-200/50 text-center font-medium tracking-wider uppercase">
+                    <p className="mt-3 md:mt-4 text-[10px] md:text-xs text-blue-200/50 text-center font-medium tracking-wider uppercase">
                         Acesso restrito ao painel de gestão
                     </p>
                 </div>
