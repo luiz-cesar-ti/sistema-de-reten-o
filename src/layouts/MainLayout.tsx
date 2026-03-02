@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, LayoutDashboard, Users, FileWarning, UserCog, ChevronLeft, ChevronRight } from 'lucide-react';
+import { NotificationBell } from '../components/NotificationBell';
 
 export function MainLayout() {
     const { profile, units, activeUnitId, setActiveUnitId, signOut, hasPrivilege } = useAuth();
@@ -80,8 +81,8 @@ export function MainLayout() {
                     )}
                 </nav>
 
-                <div className="p-4 bg-[#0a1520] border-t border-white/5">
-                    <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+                <div className="p-4 bg-[#0a1520] border-t border-white/5 flex items-center justify-between">
+                    <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'gap-3'}`}>
                         <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-yellow-500 text-[#0d1b2a] flex items-center justify-center font-bold shadow-md flex-shrink-0">
                             {profile?.full_name?.charAt(0).toUpperCase()}
                         </div>
@@ -95,7 +96,28 @@ export function MainLayout() {
                             </div>
                         )}
                     </div>
+                    {!isCollapsed && (
+                        <button
+                            onClick={signOut}
+                            className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg"
+                            title="Sair"
+                        >
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                    )}
                 </div>
+                {/* Minimal Logout Button when Collapsed */}
+                {isCollapsed && (
+                    <div className="pb-4 pt-1 flex justify-center bg-[#0a1520]">
+                        <button
+                            onClick={signOut}
+                            className="text-gray-400 hover:text-red-400 transition-colors p-2 hover:bg-white/5 rounded-lg"
+                            title="Sair"
+                        >
+                            <LogOut className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
             </aside>
 
             {/* Main Content */}
@@ -120,14 +142,8 @@ export function MainLayout() {
                         )}
                     </div>
 
-                    <div>
-                        <button
-                            onClick={signOut}
-                            className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors"
-                        >
-                            <LogOut className="w-4 h-4" />
-                            Sair
-                        </button>
+                    <div className="flex items-center gap-4">
+                        <NotificationBell />
                     </div>
                 </header>
 
