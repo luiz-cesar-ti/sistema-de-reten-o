@@ -157,7 +157,7 @@ como um coordenador experiente relatando um caso para a diretoria.`
                     content: text
                   }
                 ],
-                temperature: 0.3,
+                temperature: 0.2,
                 max_tokens: 4000,
               })
             });
