@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Bell, UserPlus, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -28,6 +28,23 @@ export function NotificationBell() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const [readIds, setReadIds] = useState<string[]>(() => {
+        try {
+            const stored = localStorage.getItem('notification_read_ids');
+            return stored ? JSON.parse(stored) : [];
+        } catch { return []; }
+    });
+
+    const markAsRead = (ids: string[]) => {
+        if (!ids.length) return;
+        setReadIds(prev => {
+            const next = Array.from(new Set([...prev, ...ids]));
+            localStorage.setItem('notification_read_ids', JSON.stringify(next));
+            return next;
+        });
+    };
 
     // Renderiza apenas para admin ou diretor
     const isAuthorized = hasPrivilege('admin') || hasPrivilege('diretor');
@@ -64,6 +81,7 @@ export function NotificationBell() {
                     .from('students')
                     .select('id, created_at, created_by')
                     .eq('unit_id', activeUnitId)
+                    .or('is_deleted.is.null,is_deleted.eq.false')
                     .gte('created_at', today.toISOString());
 
                 // Coletar todos os IDs de autores
@@ -143,12 +161,30 @@ export function NotificationBell() {
         };
     }, [isAuthorized, activeUnitId]);
 
+    useEffect(() => {
+        if (!isAuthorized) return;
+        let newReadIds: string[] = [];
+        if (location.pathname === '/alunos') {
+            newReadIds = notifications.filter(n => n.type === 'student').map(n => n.id);
+        } else if (location.pathname === '/pendencias') {
+            newReadIds = notifications.filter(n => n.type === 'reason').map(n => n.id);
+        }
+
+        if (newReadIds.length > 0) {
+            const unread = newReadIds.filter(id => !readIds.includes(id));
+            if (unread.length > 0) {
+                markAsRead(unread);
+            }
+        }
+    }, [location.pathname, notifications, isAuthorized]);
+
     if (!isAuthorized) return null;
 
-    const totalUnread = notifications.length;
+    const unreadCount = notifications.filter(n => !readIds.includes(n.id)).length;
 
     const handleNotificationClick = (n: NotificationItem) => {
         setIsDropdownOpen(false);
+        markAsRead([n.id]);
         if (n.type === 'reason') {
             navigate('/pendencias');
         } else if (n.type === 'student' && n.studentId) {
@@ -165,13 +201,13 @@ export function NotificationBell() {
             >
                 <Bell className={`w-6 h-6 ${isDropdownOpen ? '' : 'group-hover:animate-pulse'}`} />
 
-                {totalUnread > 0 && (
+                {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 flex items-center justify-center w-6 h-6 text-xs font-black text-white bg-red-500 border-2 border-white rounded-full animate-in zoom-in duration-300 shadow-sm">
-                        {totalUnread > 99 ? '99+' : totalUnread}
+                        {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}
 
-                {totalUnread > 0 && !isDropdownOpen && (
+                {unreadCount > 0 && !isDropdownOpen && (
                     <span className="absolute -top-1 -right-1 flex w-6 h-6">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                     </span>
@@ -183,9 +219,9 @@ export function NotificationBell() {
                 <div className="absolute right-0 mt-3 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     <div className="bg-gray-50 border-b border-gray-100 p-3 flex justify-between items-center">
                         <h3 className="font-bold text-gray-900 text-sm">Central de Notificações</h3>
-                        {totalUnread > 0 && (
+                        {unreadCount > 0 && (
                             <span className="bg-objetivo-blue text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                                {totalUnread} novas
+                                {unreadCount} novas
                             </span>
                         )}
                     </div>
@@ -217,11 +253,11 @@ export function NotificationBell() {
                                         <div className="flex-1 min-w-0">
                                             {n.type === 'student' ? (
                                                 <p className="text-sm text-gray-800 leading-snug">
-                                                    Novo aluno cadastrado pelo <span className="font-bold">{n.authorName}</span> em {format(parseISO(n.date), "dd/MM/yyyy", { locale: ptBR })}
+                                                    Novo aluno cadastrado pelo(a) <span className="font-bold">{n.authorName}</span> em {format(parseISO(n.date), "dd/MM/yyyy", { locale: ptBR })}.
                                                 </p>
                                             ) : (
                                                 <p className="text-sm text-gray-800 leading-snug">
-                                                    Nova pendência da <span className="font-bold">{n.authorRole}</span> <span className="font-bold text-gray-900">{n.authorName}</span>
+                                                    Nova pendência - {n.authorRole} - <span className="font-bold text-gray-900">{n.authorName}</span>.
                                                 </p>
                                             )}
                                             <p className="text-xs text-gray-400 mt-1">
