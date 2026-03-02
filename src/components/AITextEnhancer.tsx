@@ -35,10 +35,13 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
 
             if (data.improvedText) {
                 setOriginalText(value);
-                // Dispara o onChange sintético
+                // Dispara o onChange sintético injetando o name para o React Hook Form não se perder
                 const fakeEvent = {
-                    target: { value: data.improvedText }
-                } as React.ChangeEvent<HTMLTextAreaElement>;
+                    target: {
+                        value: data.improvedText,
+                        name: rest.name
+                    }
+                } as unknown as React.ChangeEvent<HTMLTextAreaElement>;
                 onChange(fakeEvent);
             }
         } catch (error) {
@@ -52,8 +55,11 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
     const handleRestoreText = () => {
         if (originalText !== null) {
             const fakeEvent = {
-                target: { value: originalText }
-            } as React.ChangeEvent<HTMLTextAreaElement>;
+                target: {
+                    value: originalText,
+                    name: rest.name
+                }
+            } as unknown as React.ChangeEvent<HTMLTextAreaElement>;
             onChange(fakeEvent);
             setOriginalText(null);
         }
@@ -71,7 +77,7 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
         if (originalText !== null) {
             setOriginalText(null);
         }
-        onChange({ target: { value: e.currentTarget.innerHTML } });
+        onChange({ target: { value: e.currentTarget.innerHTML, name: rest.name } } as unknown as React.ChangeEvent<HTMLTextAreaElement>);
     };
 
     // Remove tags HTML para checar o tamanho se for Div
