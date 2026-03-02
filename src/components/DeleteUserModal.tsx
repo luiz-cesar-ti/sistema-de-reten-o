@@ -1,4 +1,5 @@
 import { X, AlertTriangle } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 interface DeleteUserModalProps {
     isOpen: boolean;
@@ -10,7 +11,7 @@ interface DeleteUserModalProps {
 export function DeleteUserModal({ isOpen, onClose, onConfirm, userName }: DeleteUserModalProps) {
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm transition-opacity">
             <div
                 className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200"
@@ -64,6 +65,7 @@ export function DeleteUserModal({ isOpen, onClose, onConfirm, userName }: Delete
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

@@ -1,5 +1,6 @@
 import { X, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 export type ConfirmVariant = 'danger' | 'warning' | 'info';
 
@@ -55,7 +56,7 @@ export function ConfirmModal({
     const currentStyle = styles[variant];
     const IconComponent = currentStyle.icon;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm transition-opacity">
             <div
                 className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200"
@@ -109,6 +110,7 @@ export function ConfirmModal({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
