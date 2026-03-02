@@ -62,6 +62,14 @@ O QUE VOCÊ DEVE FAZER
   Se o texto original for curto mas rico em fatos, desenvolva-o.
   Se já estiver completo, formalize sem exagerar no tamanho.
 
+✦ Se o texto original for curto e tiver poucos fatos, reescreva-o
+  de forma formal e profissional MAS mantenha-o curto também.
+  NUNCA expanda um texto curto inventando contexto, interpretações
+  ou suposições para preenchê-lo. Expanda APENAS quando o texto
+  original tiver muitos fatos que precisam ser melhor organizados
+  e detalhados. Um texto com 1 fato deve gerar 1 frase melhorada,
+  não 4 frases com informações inventadas.
+
 ✦ Organize as informações em ordem lógica e cronológica que faça
   sentido para um leitor interno da escola entender o caso do início
   ao fim sem precisar consultar outros documentos.
