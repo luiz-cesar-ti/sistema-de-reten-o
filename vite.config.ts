@@ -12,14 +12,15 @@ const apiPlugin = () => ({
     server.middlewares.use(async (req: any, res: any, next: any) => {
       // Mock da Vercel Function localmente
       if (req.url === '/api/improve-text' && req.method === 'POST') {
-        let body = '';
-        req.on('data', (chunk: any) => { body += chunk.toString() });
+        const chunks: any[] = [];
+        req.on('data', (chunk: any) => { chunks.push(chunk) });
         req.on('end', async () => {
           try {
+            const body = Buffer.concat(chunks).toString('utf-8');
             const { text } = JSON.parse(body);
-            if (!text || text.length < 20 || text.length > 5000) {
+            if (!text || text.trim().length < 10) {
               res.statusCode = 400;
-              return res.end(JSON.stringify({ error: 'Texto inválido.' }));
+              return res.end(JSON.stringify({ error: 'Texto muito curto.' }));
             }
 
             const apiKey = process.env.GROQ_API_KEY;
@@ -52,7 +53,7 @@ REGRA 4: O tom deve ser corporativo educacional, com português do Brasil impec�
                   }
                 ],
                 temperature: 0.3,
-                max_tokens: 1000,
+                max_tokens: 4000,
               })
             });
 
