@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { UserPlus, Shield, User, ShieldCheck, MoreVertical, Eye, Check, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { DeleteUserModal } from '../components/DeleteUserModal';
 
 interface UserProfile {
     id: string;
@@ -45,6 +46,7 @@ export function Usuarios() {
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -144,24 +146,30 @@ export function Usuarios() {
         }
     };
 
-    const deleteUser = async (userId: string) => {
-        if (!window.confirm("Tem certeza que deseja apagar permanentemente este usuário? Suas ações nos registros ficarão mantidas.")) return;
+    const confirmDeleteUser = async () => {
+        if (!userToDelete) return;
 
         try {
             const { error } = await supabase
                 .from('profiles')
                 .update({ is_deleted: true, is_active: false })
-                .eq('id', userId);
+                .eq('id', userToDelete.id);
 
             if (error) throw error;
 
-            setUsers(prev => prev.filter(u => u.id !== userId));
+            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
             toast.success('Usuário apagado com sucesso');
             setOpenMenuId(null);
+            setUserToDelete(null);
         } catch (err) {
             console.error(err);
             toast.error('Erro ao apagar usuário');
         }
+    };
+
+    const handleDeleteClick = (user: UserProfile) => {
+        setUserToDelete(user);
+        setOpenMenuId(null);
     };
 
     const unificados: Record<string, any> = {};
@@ -250,7 +258,7 @@ export function Usuarios() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative flex items-center justify-end gap-2">
                                                 <button
-                                                    onClick={() => deleteUser(u.id)}
+                                                    onClick={() => handleDeleteClick(u)}
                                                     className="text-red-400 hover:text-red-700 transition-colors p-1 rounded-md hover:bg-red-50"
                                                     title="Excluir Usuário"
                                                 >
@@ -318,6 +326,13 @@ export function Usuarios() {
                     </div>
                 )}
             </div>
+
+            <DeleteUserModal
+                isOpen={!!userToDelete}
+                onClose={() => setUserToDelete(null)}
+                onConfirm={confirmDeleteUser}
+                userName={userToDelete?.full_name || ''}
+            />
         </div>
     );
 }
