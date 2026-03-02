@@ -91,48 +91,46 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
     const showImproveButton = plainText.trim().length >= 20;
 
     return (
-        <div className="w-full flex flex-col gap-2">
-            <div className="relative w-full">
-                {asDiv ? (
-                    <div
-                        {...(rest as any)}
-                        ref={ref as React.RefObject<HTMLDivElement>}
-                        contentEditable
-                        onInput={handleDivInput}
-                        dangerouslySetInnerHTML={{ __html: value }}
-                        className={`${className} pb-8 min-h-[100px] outline-none`} // padding-bottom extra para os botões
-                        suppressContentEditableWarning={true}
-                    />
-                ) : (
-                    <textarea
-                        {...rest}
-                        ref={ref as React.RefObject<HTMLTextAreaElement>}
-                        value={value}
-                        onChange={handleChange}
-                        disabled={isLoading || rest.disabled}
-                        className={`${className} pb-8`} // padding-bottom extra para os botões
-                    />
-                )}
+        <div className="w-full flex flex-col gap-3">
+            {asDiv ? (
+                <div
+                    {...(rest as any)}
+                    ref={ref as React.RefObject<HTMLDivElement>}
+                    contentEditable
+                    onInput={handleDivInput}
+                    dangerouslySetInnerHTML={{ __html: value }}
+                    className={`${className} min-h-[100px] outline-none`}
+                    suppressContentEditableWarning={true}
+                />
+            ) : (
+                <textarea
+                    {...rest}
+                    ref={ref as React.RefObject<HTMLTextAreaElement>}
+                    value={value}
+                    onChange={handleChange}
+                    disabled={isLoading || rest.disabled}
+                    className={`${className}`}
+                />
+            )}
 
-                {/* AI Improve Button / Loader Overlay Area */}
-                <div className="absolute bottom-2 left-2 flex items-center">
-                    {isLoading ? (
-                        <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-purple-600 bg-purple-50 rounded select-none">
-                            <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
-                            Analisando...
-                        </div>
-                    ) : showImproveButton ? (
-                        <button
-                            type="button"
-                            onClick={handleImproveText}
-                            className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded transition-colors select-none"
-                            title="A IA vai organizar, corrigir e melhorar seu texto profissionalmente."
-                        >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            Melhorar com IA
-                        </button>
-                    ) : null}
-                </div>
+            {/* AI Improve Button / Loader Area */}
+            <div className="flex items-center justify-end">
+                {isLoading ? (
+                    <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-400 rounded-md shadow-sm select-none transition-all">
+                        <RefreshCcw className="w-4 h-4 animate-spin" />
+                        Analisando com IA...
+                    </div>
+                ) : showImproveButton ? (
+                    <button
+                        type="button"
+                        onClick={handleImproveText}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg rounded-md transition-all select-none transform hover:-translate-y-0.5"
+                        title="A IA vai organizar, corrigir e melhorar seu texto profissionalmente."
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        Melhorar com IA
+                    </button>
+                ) : null}
             </div>
 
             {/* Original Text Disclosure */}
