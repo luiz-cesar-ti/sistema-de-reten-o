@@ -104,7 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else if (event === 'SIGNED_OUT') {
                 setProfile(null);
                 setUnits([]);
-                localStorage.removeItem('activeUnitId');
                 setActiveUnitIdState(null);
                 setIsLoading(false);
             } else if (event === 'TOKEN_REFRESHED') {
