@@ -94,9 +94,9 @@ export function Pendencias() {
                     if (error) throw error;
                     await logAction('student_approved', 'students', id);
                 } else {
-                    const { error } = await supabase.from('students').update({ approval_status: 'rejected', is_deleted: true }).eq('id', id);
-                    if (error) throw error;
-                    await logAction('student_rejected', 'students', id);
+                    const { error: deleteError } = await supabase.from('students').delete().eq('id', id);
+                    if (deleteError) throw deleteError;
+                    // Note: Audit log for student_rejected will be skipped because the student is deleted
                 }
             } else {
                 if (action === 'approved' && pendingItem) {
@@ -245,15 +245,14 @@ export function Pendencias() {
                                             </div>
                                             <div className="grid grid-cols-2 gap-y-2 text-sm">
                                                 <div className="text-gray-500">Nível:</div>
-                                                <div className="font-medium">{item.students.education_level === 'educacao_infantil' ? 'Ed. Infantil' : item.students.education_level === 'ensino_fundamental_1' ? 'Fund. I' : item.students.education_level === 'ensino_fundamental_2' ? 'Fund. II' : 'Ensino Médio'}</div>
+                                                <div className="font-medium">{item.students.education_level === 'educacao_infantil' ? 'Educação Infantil' : item.students.education_level === 'ensino_fundamental_1' ? 'Ensino Fundamental 1' : item.students.education_level === 'ensino_fundamental_2' ? 'Ensino Fundamental 2' : 'Ensino Médio'}</div>
 
                                                 <div className="text-gray-500">Tipo:</div>
-                                                <div className="font-medium">{item.students.status === 'cancelamento' ? 'Cancelamento' : 'Transferência'}</div>
-
-                                                <div className="text-gray-500 col-span-2 mt-2">Relato do Atendimento:</div>
-                                                <div className="col-span-2 bg-gray-50 p-3 rounded text-gray-700 italic border border-gray-200 mt-1 whitespace-pre-wrap">
-                                                    {item.reason_text}
-                                                </div>
+                                                <div className="font-medium">{item.students.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}</div>
+                                            </div>
+                                            <div className="text-gray-500 col-span-2 mt-2">Relato do Atendimento:</div>
+                                            <div className="col-span-2 bg-gray-50 p-3 rounded text-gray-700 italic border border-gray-200 mt-1 whitespace-pre-wrap">
+                                                {item.reason_text}
                                             </div>
                                         </div>
                                     ) : (
@@ -309,6 +308,6 @@ export function Pendencias() {
                 confirmText={confirmActionData?.action === 'approved' ? 'Sim, aprovar' : 'Sim, rejeitar'}
                 variant={confirmActionData?.action === 'approved' ? 'info' : 'danger'}
             />
-        </div>
+        </div >
     );
 }

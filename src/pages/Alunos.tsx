@@ -33,6 +33,7 @@ const fetchStudents = async ([_key, activeUnitId]: [string, string]) => {
         .from('students')
         .select('*')
         .eq('unit_id', activeUnitId)
+        .neq('approval_status', 'pending')
         .or('is_deleted.is.null,is_deleted.eq.false')
         .order('created_at', { ascending: false });
 

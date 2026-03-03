@@ -65,6 +65,7 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, needsPendentes
             .select('id, status, education_level, created_at, full_name, serie, spoke_with_coordination, coordination_reversed, spoke_with_direction, categoria_motivo')
             .eq('unit_id', activeUnitId)
             .eq('is_deleted', false)
+            .neq('approval_status', 'pending')
             .gte('created_at', startD.toISOString())
             .lte('created_at', endD.toISOString())
             .order('created_at', { ascending: false }),
@@ -79,10 +80,10 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, needsPendentes
             : Promise.resolve({ count: 0 }),
 
         supabase.from('students').select('id', { count: 'exact', head: true })
-            .eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'cancelamento'),
+            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'cancelamento'),
 
         supabase.from('students').select('id', { count: 'exact', head: true })
-            .eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'transferencia')
+            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'transferencia')
     ]);
 
     const students = studentsResult.data || [];
