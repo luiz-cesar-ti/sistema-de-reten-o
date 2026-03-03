@@ -300,25 +300,28 @@ export function Dashboard() {
                 {/* Seção 3: Pizza */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
-                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
+                    className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col"
                 >
-                    <h3 className="text-lg font-bold text-gray-800 mb-6">Níveis de Ensino</h3>
-                    <div className="h-64">
+                    <h3 className="text-lg font-bold text-gray-800 mb-2 px-2">Níveis de Ensino</h3>
+                    <div className="h-[300px] flex flex-col justify-center">
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
+                            <PieChart margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
                                 <Pie
                                     data={levelData}
-                                    innerRadius={50}
-                                    outerRadius={75}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={55}
+                                    outerRadius={80}
                                     paddingAngle={5}
                                     dataKey="value"
                                     isAnimationActive={true}
+                                    labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
                                     label={(props: any) => {
                                         if (!props || typeof props.percent !== 'number') return null;
                                         const { cx, cy, midAngle, outerRadius, percent, value } = props;
                                         const RADIAN = Math.PI / 180;
-                                        // Puxa o rótulo com segurança para a borda externa permitindo a linha de conexão se formar
-                                        const rInfo = (outerRadius || 75) + 25;
+                                        // Ponto da label mais próximo do centro que as bordas
+                                        const rInfo = (outerRadius || 80) + 18;
                                         const angle = midAngle || 0;
                                         const x = cx + rInfo * Math.cos(-angle * RADIAN);
                                         const y = cy + rInfo * Math.sin(-angle * RADIAN);
@@ -336,14 +339,36 @@ export function Dashboard() {
                                             </text>
                                         );
                                     }}
-                                    labelLine={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '2 2' }}
                                 >
                                     {levelData.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
                                 <RechartsTooltip />
-                                <Legend />
+                                <Legend
+                                    content={(props) => {
+                                        const { payload } = props;
+                                        return (
+                                            <div className="pt-4 w-full">
+                                                <ul className="grid grid-cols-2 gap-x-2 gap-y-3 w-full justify-between">
+                                                    {payload?.map((entry, index) => {
+                                                        const isEven = index % 2 === 0;
+                                                        return (
+                                                            <li
+                                                                key={`item-${index}`}
+                                                                className={`flex items-center text-[11px] whitespace-nowrap ${isEven ? 'justify-start' : 'justify-end'}`}
+                                                                style={{ color: entry.color }}
+                                                            >
+                                                                <span className="w-3 h-3 rounded-sm mr-2 shrink-0" style={{ backgroundColor: entry.color }}></span>
+                                                                <span>{entry.value}</span>
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
+                                            </div>
+                                        );
+                                    }}
+                                />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
