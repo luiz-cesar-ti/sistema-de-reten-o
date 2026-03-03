@@ -99,10 +99,10 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, userContext]: 
                 : Promise.resolve({ count: 0 }),
 
         supabase.from('students').select('id', { count: 'exact', head: true })
-            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'cancelamento'),
+            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'evasao'),
 
         supabase.from('students').select('id', { count: 'exact', head: true })
-            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'transferencia')
+            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'transferencia_rede')
     ]);
 
     const students = studentsResult.data || [];
@@ -120,29 +120,29 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, userContext]: 
 
     while (loopDate >= startMonth) {
         const ym = format(loopDate, 'yyyy-MM');
-        monthMap.set(ym, { name: format(loopDate, 'MMM/yy', { locale: ptBR }), yearMonth: ym, Cancelamentos: 0, Transferências: 0 });
+        monthMap.set(ym, { name: format(loopDate, 'MMM/yy', { locale: ptBR }), yearMonth: ym, Evasões: 0, 'Transf. Rede': 0 });
         loopDate.setMonth(loopDate.getMonth() - 1);
     }
 
     const lvlMap: Record<string, number> = {};
-    const catMap: Record<string, { cancelamentos: number, transferencias: number }> = {};
+    const catMap: Record<string, { evasoes: number, transferencias: number }> = {};
     let spokeCoord = 0, reverted = 0, spokeDir = 0, mesAtualCount = 0;
 
     students.forEach(s => {
         const dText = format(parseISO(s.created_at), 'yyyy-MM');
         if (monthMap.has(dText)) {
             const g = monthMap.get(dText);
-            if (s.status === 'cancelamento') g.Cancelamentos++;
-            if (s.status === 'transferencia') g.Transferências++;
+            if (s.status === 'evasao') g.Evasões++;
+            if (s.status === 'transferencia_rede') g['Transf. Rede']++;
         }
 
         const nm = levelsMap[s.education_level] || s.education_level;
         lvlMap[nm] = (lvlMap[nm] || 0) + 1;
 
         const cat = s.categoria_motivo || 'Não Informado';
-        if (!catMap[cat]) catMap[cat] = { cancelamentos: 0, transferencias: 0 };
-        if (s.status === 'cancelamento') catMap[cat].cancelamentos++;
-        else if (s.status === 'transferencia') catMap[cat].transferencias++;
+        if (!catMap[cat]) catMap[cat] = { evasoes: 0, transferencias: 0 };
+        if (s.status === 'evasao') catMap[cat].evasoes++;
+        else if (s.status === 'transferencia_rede') catMap[cat].transferencias++;
 
         if (s.spoke_with_coordination) spokeCoord++;
         if (s.coordination_reversed) reverted++;
@@ -156,11 +156,11 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, userContext]: 
 
     const processedCategories = Object.entries(catMap)
         .map(([name, counts]) => {
-            const total = counts.cancelamentos + counts.transferencias;
+            const total = counts.evasoes + counts.transferencias;
             return {
                 name,
-                Cancelamentos: counts.cancelamentos,
-                Transferências: counts.transferencias,
+                Evasões: counts.evasoes,
+                'Transf. Rede': counts.transferencias,
                 total,
                 percent: students.length > 0 ? Math.round((total / students.length) * 100) : 0
             };
@@ -170,7 +170,7 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, userContext]: 
 
     return {
         metrics: {
-            cancelamentos: totalCancels,
+            evasoes: totalCancels,
             transferencias: totalTransfers,
             pendentes: pendentesCount,
             mesAtual: mesAtualCount,
@@ -213,7 +213,7 @@ export function Dashboard() {
 
     // Default values se 'data' ainda não estiver pronto
     const {
-        metrics = { cancelamentos: 0, transferencias: 0, pendentes: 0, mesAtual: 0 },
+        metrics = { evasoes: 0, transferencias: 0, pendentes: 0, mesAtual: 0 },
         chartData = [],
         levelData = [],
         categoryData = [],
@@ -224,7 +224,7 @@ export function Dashboard() {
     // Auto-reset category if the selected one is no longer in the filtered data range
     useEffect(() => {
         if (selectedCategory !== 'Todas as Categorias') {
-            const categoryExists = categoryData.some((c: any) => c.name === selectedCategory && (c.Cancelamentos > 0 || c.Transferências > 0));
+            const categoryExists = categoryData.some((c: any) => c.name === selectedCategory && (c.Evasões > 0 || c['Transf. Rede'] > 0));
             if (!categoryExists) {
                 setSelectedCategory('Todas as Categorias');
             }
@@ -269,8 +269,8 @@ export function Dashboard() {
 
             {/* Seção 1: Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <MetricCard title="Cancelamentos" value={metrics.cancelamentos} icon={<UserMinus className="w-6 h-6 text-red-600" />} color="bg-red-50" delay={0.1} />
-                <MetricCard title="Transferências" value={metrics.transferencias} icon={<ArrowRightLeft className="w-6 h-6 text-orange-600" />} color="bg-orange-50" delay={0.2} />
+                <MetricCard title="Evasões" value={metrics.evasoes} icon={<UserMinus className="w-6 h-6 text-red-600" />} color="bg-red-50" delay={0.1} />
+                <MetricCard title="Transf. Rede" value={metrics.transferencias} icon={<ArrowRightLeft className="w-6 h-6 text-orange-600" />} color="bg-orange-50" delay={0.2} />
                 <MetricCard title="Pendentes" value={metrics.pendentes} icon={<AlertCircle className={`w-6 h-6 ${metrics.pendentes > 0 ? 'text-yellow-600' : 'text-gray-400'}`} />} color={metrics.pendentes > 0 ? 'bg-yellow-50' : 'bg-gray-50'} delay={0.3} flash={metrics.pendentes > 0} />
                 <MetricCard title="Este Mês" value={metrics.mesAtual} icon={<CalendarDays className="w-6 h-6 text-blue-600" />} color="bg-blue-50" delay={0.4} />
             </div>
@@ -290,8 +290,8 @@ export function Dashboard() {
                                 <YAxis allowDecimals={false} />
                                 <RechartsTooltip />
                                 <Legend />
-                                <Bar dataKey="Cancelamentos" fill="#f44336" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="Transferências" fill="#FFA000" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Evasões" fill="#f44336" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Transf. Rede" fill="#FFA000" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -397,10 +397,10 @@ export function Dashboard() {
                                         <p className="text-xs text-gray-500">{levelsMap[s.education_level]} • {s.serie}</p>
                                     </div>
                                     <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-                                        <div className={`text-xs font-medium border px-2 py-1 rounded truncate max-w-[100px] md:max-w-none ${s.status === 'cancelamento' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-orange-50 text-orange-600 border-orange-100'
+                                        <div className={`text-xs font-medium border px-2 py-1 rounded truncate max-w-[100px] md:max-w-none ${s.status === 'evasao' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-orange-50 text-orange-600 border-orange-100'
                                             }`}>
-                                            <span className="hidden md:inline">{s.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}</span>
-                                            <span className="md:hidden">{s.status === 'cancelamento' ? 'Cancel.' : 'Transf.'}</span>
+                                            <span className="hidden md:inline">{s.status === 'evasao' ? 'Evasão' : 'Transf. Rede'}</span>
+                                            <span className="md:hidden">{s.status === 'evasao' ? 'Evasão' : 'Transf.'}</span>
                                         </div>
                                         <Link to={`/alunos/${s.id}`} className="p-1 text-gray-400 hover:text-objetivo-blue transition-colors">
                                             <ArrowRight className="w-5 h-5" />
@@ -427,7 +427,7 @@ export function Dashboard() {
                                 className="w-full sm:w-auto rounded-lg border border-gray-300 py-2.5 pl-4 pr-10 text-sm font-medium focus:border-objetivo-blue focus:outline-none focus:ring-2 focus:ring-objetivo-blue/20 bg-gray-50 shadow-sm"
                             >
                                 <option value="Todas as Categorias">Todas as Categorias</option>
-                                {categoryData.filter((c: any) => c.Cancelamentos > 0 || c.Transferências > 0).map((cat: any) => (
+                                {categoryData.filter((c: any) => c.Evasões > 0 || c['Transf. Rede'] > 0).map((cat: any) => (
                                     <option key={cat.name} value={cat.name}>
                                         {cat.name}
                                     </option>
@@ -460,13 +460,13 @@ export function Dashboard() {
                         let currTransfers = 0;
 
                         if (selectedCategory === 'Todas as Categorias') {
-                            currCancels = categoryData.reduce((acc: number, c: any) => acc + c.Cancelamentos, 0);
-                            currTransfers = categoryData.reduce((acc: number, c: any) => acc + c.Transferências, 0);
+                            currCancels = categoryData.reduce((acc: number, c: any) => acc + c.Evasões, 0);
+                            currTransfers = categoryData.reduce((acc: number, c: any) => acc + c['Transf. Rede'], 0);
                         } else {
                             const found = categoryData.find((c: any) => c.name === selectedCategory);
                             if (found) {
-                                currCancels = found.Cancelamentos;
-                                currTransfers = found.Transferências;
+                                currCancels = found.Evasões;
+                                currTransfers = found['Transf. Rede'];
                             }
                         }
 
@@ -486,7 +486,7 @@ export function Dashboard() {
                                                 <AnimatedNumber value={currCancels} />
                                             </div>
                                             <div className="text-[24px] font-semibold mt-1 opacity-90"><AnimatedNumber value={cancelPerc} />%</div>
-                                            <div className="text-sm font-medium opacity-80 mt-1 uppercase tracking-wider">Cancelamentos</div>
+                                            <div className="text-sm font-medium opacity-80 mt-1 uppercase tracking-wider">Evasões</div>
                                         </div>
 
                                         {/* Divider */}
@@ -499,7 +499,7 @@ export function Dashboard() {
                                                 <AnimatedNumber value={currTransfers} />
                                             </div>
                                             <div className="text-[24px] font-semibold mt-1 opacity-90"><AnimatedNumber value={transferPerc} />%</div>
-                                            <div className="text-sm font-medium opacity-80 mt-1 uppercase tracking-wider">Transferências</div>
+                                            <div className="text-sm font-medium opacity-80 mt-1 uppercase tracking-wider">Transf. Rede</div>
                                         </div>
                                     </div>
 
@@ -524,8 +524,8 @@ export function Dashboard() {
                                                 <PieChart>
                                                     <Pie
                                                         data={[
-                                                            { name: 'Cancelamentos', value: currCancels, fill: '#dc2626' },
-                                                            { name: 'Transferências', value: currTransfers, fill: '#2563eb' }
+                                                            { name: 'Evasões', value: currCancels, fill: '#dc2626' },
+                                                            { name: 'Transf. Rede', value: currTransfers, fill: '#2563eb' }
                                                         ].filter(d => d.value > 0)}
                                                         cx="50%"
                                                         cy="50%"
@@ -551,8 +551,8 @@ export function Dashboard() {
                                                         labelLine={false}
                                                     >
                                                         {[
-                                                            { name: 'Cancelamentos', value: currCancels, fill: '#dc2626' },
-                                                            { name: 'Transferências', value: currTransfers, fill: '#2563eb' }
+                                                            { name: 'Evasões', value: currCancels, fill: '#dc2626' },
+                                                            { name: 'Transf. Rede', value: currTransfers, fill: '#2563eb' }
                                                         ].filter(d => d.value > 0).map((entry, index) => (
                                                             <Cell key={`cell-${index}`} fill={entry.fill} />
                                                         ))}
@@ -571,11 +571,11 @@ export function Dashboard() {
                                     <div className="flex flex-row items-center justify-center gap-6 mt-6 shrink-0 text-sm font-semibold text-gray-600">
                                         <div className="flex items-center gap-2">
                                             <span className="w-3.5 h-3.5 rounded-full bg-[#dc2626] shadow-sm"></span>
-                                            Cancelamento de Matrícula
+                                            Evasão
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="w-3.5 h-3.5 rounded-full bg-[#2563eb] shadow-sm"></span>
-                                            Transferência
+                                            Transf. Rede
                                         </div>
                                     </div>
                                 </div>

@@ -13,11 +13,12 @@ import { AITextEnhancer } from '../components/AITextEnhancer';
 
 const formSchema = z.object({
     fullName: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
+    ra: z.string().optional(),
     educationLevel: z.enum(['educacao_infantil', 'ensino_fundamental_1', 'ensino_fundamental_2', 'ensino_medio'], {
         message: 'Selecione o nível de ensino',
     }),
     serie: z.string().min(1, 'Série é obrigatória'),
-    status: z.enum(['cancelamento', 'transferencia'], {
+    status: z.enum(['evasao', 'transferencia_rede'], {
         message: 'Selecione o tipo do caso',
     }),
     categoriaMotivo: z.enum([
@@ -123,6 +124,7 @@ export function AlunoForm() {
 
             const { data: studentData, error: studentError } = await supabase.from('students').insert({
                 full_name: cleanFullName,
+                ra: data.ra ? DOMPurify.sanitize(data.ra.trim()) : null,
                 unit_id: activeUnitId,
                 education_level: data.educationLevel,
                 serie: cleanSerie,
@@ -209,6 +211,11 @@ export function AlunoForm() {
                             {errors.educationLevel && <p className="mt-1 text-xs text-red-500">{errors.educationLevel.message}</p>}
                         </div>
 
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">RA (Registro do Aluno)</label>
+                            <input type="text" placeholder="Ex: 123456" {...register('ra')} className={`mt-1 block w-full rounded-md border-0 py-2 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-objetivo-blue sm:text-sm`} />
+                        </div>
+
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700">Série <span className="text-red-500">*</span></label>
                             <input type="text" placeholder="Ex: 3º ano, 1ª série, Maternal II..." {...register('serie')} className={`mt-1 block w-full rounded-md border-0 py-2 px-3 text-gray-900 ring-1 ring-inset ${errors.serie ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-objetivo-blue'} sm:text-sm`} />
@@ -223,24 +230,24 @@ export function AlunoForm() {
                         Tipo do Caso <span className="text-red-500">*</span>
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label className={`relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none ${watch('status') === 'cancelamento' ? 'border-red-500 ring-1 ring-red-500 bg-red-50' : 'border-gray-300'}`}>
-                            <input type="radio" value="cancelamento" {...register('status')} className="sr-only" />
+                        <label className={`relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none ${watch('status') === 'evasao' ? 'border-red-500 ring-1 ring-red-500 bg-red-50' : 'border-gray-300'}`}>
+                            <input type="radio" value="evasao" {...register('status')} className="sr-only" />
                             <span className="flex flex-1">
                                 <span className="flex flex-col">
-                                    <span className={`block text-sm font-medium ${watch('status') === 'cancelamento' ? 'text-red-900' : 'text-gray-900'}`}>Cancelamento de Matrícula</span>
+                                    <span className={`block text-sm font-medium ${watch('status') === 'evasao' ? 'text-red-900' : 'text-gray-900'}`}>Evasão</span>
                                 </span>
                             </span>
-                            <Check className={`h-5 w-5 ${watch('status') === 'cancelamento' ? 'text-red-600' : 'invisible'}`} />
+                            <Check className={`h-5 w-5 ${watch('status') === 'evasao' ? 'text-red-600' : 'invisible'}`} />
                         </label>
 
-                        <label className={`relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none ${watch('status') === 'transferencia' ? 'border-orange-500 ring-1 ring-orange-500 bg-orange-50' : 'border-gray-300'}`}>
-                            <input type="radio" value="transferencia" {...register('status')} className="sr-only" />
+                        <label className={`relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none ${watch('status') === 'transferencia_rede' ? 'border-orange-500 ring-1 ring-orange-500 bg-orange-50' : 'border-gray-300'}`}>
+                            <input type="radio" value="transferencia_rede" {...register('status')} className="sr-only" />
                             <span className="flex flex-1">
                                 <span className="flex flex-col">
-                                    <span className={`block text-sm font-medium ${watch('status') === 'transferencia' ? 'text-orange-900' : 'text-gray-900'}`}>Transferência</span>
+                                    <span className={`block text-sm font-medium ${watch('status') === 'transferencia_rede' ? 'text-orange-900' : 'text-gray-900'}`}>Transferência entre unidades da Rede</span>
                                 </span>
                             </span>
-                            <Check className={`h-5 w-5 ${watch('status') === 'transferencia' ? 'text-orange-600' : 'invisible'}`} />
+                            <Check className={`h-5 w-5 ${watch('status') === 'transferencia_rede' ? 'text-orange-600' : 'invisible'}`} />
                         </label>
                     </div>
                     {errors.status && <p className="mt-2 text-xs text-red-500">{errors.status.message}</p>}
@@ -363,7 +370,7 @@ export function AlunoForm() {
                             {...register('reasonText')}
                             value={reasonText || ''}
                             className={`mt-1 block w-full rounded-md border-0 py-2 px-3 text-gray-900 ring-1 ring-inset ${errors.reasonText ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-objetivo-blue'} min-h-[180px] resize-y sm:text-sm`}
-                            placeholder="Descreva detalhadamente o motivo relatado pelo responsável ou pelo aluno para o cancelamento de matrícula ou transferência..."
+                            placeholder="Descreva detalhadamente o motivo relatado pelo responsável ou pelo aluno para a evasão ou transferência..."
                         />
                         <div className="flex justify-between mt-1">
                             <p className="text-xs text-gray-400">{reasonText?.length || 0} caracteres</p>

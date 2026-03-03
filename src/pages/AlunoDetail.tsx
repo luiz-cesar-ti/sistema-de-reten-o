@@ -387,7 +387,7 @@ export function AlunoDetail() {
                                 <p className="text-sm font-semibold text-gray-900">{student.units?.name}</p>
                             </div>
 
-                            {/* Ensino e Série */}
+                            {/* Ensino, Série e RA */}
                             <div className="grid grid-cols-2">
                                 <div className="px-6 py-3">
                                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Ensino</p>
@@ -399,12 +399,19 @@ export function AlunoDetail() {
                                 </div>
                             </div>
 
+                            {student.ra && (
+                                <div className="px-6 py-3 border-t border-gray-100">
+                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">RA (Registro do Aluno)</p>
+                                    <p className="text-sm font-semibold text-gray-900">{student.ra}</p>
+                                </div>
+                            )}
+
                             {/* Status */}
                             <div className="px-6 py-3">
                                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Status</p>
-                                <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${student.status === 'cancelamento' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
+                                <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${student.status === 'evasao' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
                                     }`}>
-                                    {student.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}
+                                    {student.status === 'evasao' ? 'Evasão' : 'Transferência entre unidades da Rede'}
                                 </span>
                             </div>
 

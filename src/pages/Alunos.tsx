@@ -90,7 +90,7 @@ export function Alunos() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Alunos</h1>
-                    <p className="mt-1 text-sm text-gray-500">Gestão de cancelamentos e transferências.</p>
+                    <p className="mt-1 text-sm text-gray-500">Gestão de evasões e transferências.</p>
                 </div>
                 {hasPrivilege('atendimento') && (
                     <Link
@@ -125,8 +125,8 @@ export function Alunos() {
                         onChange={(e) => setFilterType(e.target.value)}
                     >
                         <option value="">Todos os Tipos</option>
-                        <option value="cancelamento">Cancelamento</option>
-                        <option value="transferencia">Transferência</option>
+                        <option value="evasao">Evasão</option>
+                        <option value="transferencia_rede">Transferência Rede</option>
                     </select>
 
                     <select
@@ -193,9 +193,9 @@ export function Alunos() {
                                             <div className="text-sm text-gray-500">{student.serie}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${student.status === 'cancelamento' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
+                                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${student.status === 'evasao' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
                                                 }`}>
-                                                {student.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}
+                                                {student.status === 'evasao' ? 'Evasão' : 'Transferência entre unidades da Rede'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">

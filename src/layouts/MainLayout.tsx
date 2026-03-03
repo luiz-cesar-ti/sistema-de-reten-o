@@ -110,7 +110,7 @@ export function MainLayout() {
                         </div>
                         {!isCollapsed && (
                             <div className="flex-1 overflow-hidden min-w-0">
-                                <p className="text-sm font-bold text-white truncate">{profile?.full_name}</p>
+                                <p className="text-sm font-bold text-white break-words leading-tight">{profile?.full_name}</p>
                                 <p className="text-xs text-blue-200/50 truncate flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
                                     {profile?.role?.toUpperCase()}

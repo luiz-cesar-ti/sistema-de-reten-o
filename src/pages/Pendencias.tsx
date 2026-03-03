@@ -230,9 +230,9 @@ export function Pendencias() {
                                         {item.students.full_name}
                                     </Link>
                                     <p className="text-xs text-gray-500">{item.students.serie}</p>
-                                    <span className={`mt-2 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${item.students.status === 'cancelamento' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
+                                    <span className={`mt-2 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${item.students.status === 'evasao' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
                                         }`}>
-                                        {item.students.status === 'cancelamento' ? 'Cancelamento' : 'Transferência'}
+                                        {item.students.status === 'evasao' ? 'Evasão' : 'Transf. Rede'}
                                     </span>
                                 </div>
 
@@ -248,7 +248,7 @@ export function Pendencias() {
                                                 <div className="font-medium">{item.students.education_level === 'educacao_infantil' ? 'Educação Infantil' : item.students.education_level === 'ensino_fundamental_1' ? 'Ensino Fundamental 1' : item.students.education_level === 'ensino_fundamental_2' ? 'Ensino Fundamental 2' : 'Ensino Médio'}</div>
 
                                                 <div className="text-gray-500">Tipo:</div>
-                                                <div className="font-medium">{item.students.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}</div>
+                                                <div className="font-medium">{item.students.status === 'evasao' ? 'Evasão' : 'Transferência entre unidades da Rede'}</div>
                                             </div>
                                             <div className="text-gray-500 col-span-2 mt-2">Relato do Atendimento:</div>
                                             <div className="col-span-2 bg-gray-50 p-3 rounded text-gray-700 italic border border-gray-200 mt-1 whitespace-pre-wrap">
