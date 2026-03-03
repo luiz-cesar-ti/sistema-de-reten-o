@@ -176,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Fetch units depending on role.
             if (profileData.role === 'admin') {
-                const { data: adminUnits } = await supabase.from('units').select('*').order('name');
+                const { data: adminUnits } = await supabase.from('units').select('*').order('sort_order');
                 setUnits(adminUnits || []);
                 if (adminUnits && adminUnits.length > 0) {
                     const saved = localStorage.getItem('activeUnitId');
