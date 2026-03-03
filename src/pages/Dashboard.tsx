@@ -1,9 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { subMonths, format, parseISO } from 'date-fns';
+import { subMonths, format, parseISO, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+const AnimatedNumber = ({ value }: { value: number }) => {
+    const [display, setDisplay] = useState(value);
+    useEffect(() => {
+        let startTimestamp: number;
+        const duration = 600;
+        const startValue = display;
+        const difference = value - startValue;
+        if (difference === 0) return;
+        const step = (timestamp: number) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            const easeOutQuart = 1 - Math.pow(1 - Math.min(progress, 1), 4);
+            setDisplay(Math.round(startValue + difference * easeOutQuart));
+            if (progress < 1) requestAnimationFrame(step);
+            else setDisplay(value);
+        };
+        requestAnimationFrame(step);
+    }, [value]);
+    return <>{display}</>;
+};
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell
@@ -155,6 +176,8 @@ export function Dashboard() {
         start: format(subMonths(new Date(), 5), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd')
     });
+    const [selectedCategory, setSelectedCategory] = useState<string>('Todas as Categorias');
+    const [periodSelect, setPeriodSelect] = useState<string>('Últimos 6 Meses');
 
     const needsPendentes = hasPrivilege('admin') || hasPrivilege('diretor') || hasPrivilege('coordenacao');
 
@@ -173,6 +196,16 @@ export function Dashboard() {
 
     // Default values se 'data' ainda não estiver pronto
     const { metrics = { cancelamentos: 0, transferencias: 0, pendentes: 0, mesAtual: 0 }, chartData = [], levelData = [], categoryData = [], indicators = { coord: 0, revert: 0, dir: 0 }, recent = [] } = data || {};
+
+    // Auto-reset category if the selected one is no longer in the filtered data range
+    useEffect(() => {
+        if (selectedCategory !== 'Todas as Categorias') {
+            const categoryExists = categoryData.some((c: any) => c.name === selectedCategory && (c.Cancelamentos > 0 || c.Transferências > 0));
+            if (!categoryExists) {
+                setSelectedCategory('Todas as Categorias');
+            }
+        }
+    }, [categoryData, selectedCategory]);
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -323,86 +356,171 @@ export function Dashboard() {
                 {/* Seção 6: Análise de Motivos */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }}
-                    className="bg-white p-6 rounded-xl shadow-sm lg:col-span-3 flex flex-col"
+                    className="bg-white p-6 rounded-2xl shadow-sm lg:col-span-3 flex flex-col"
                 >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 shrink-0">
-                        <div>
-                            <h3 className="text-lg font-bold text-gray-800">Principais Motivos de Desistência</h3>
-                            <p className="text-sm text-gray-500">Distribuição por tipo de caso</p>
-                        </div>
-                        <div className="flex items-center gap-4 mt-2 sm:mt-0 text-sm font-medium text-gray-600">
-                            <div className="flex items-center gap-1.5">
-                                <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                                Cancelamento de Matrícula
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-                                Transferências
-                            </div>
+                    {/* Header */}
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <h3 className="text-xl font-bold text-gray-800">Análise por Categoria de Motivo</h3>
+                        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                            <select
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="w-full sm:w-auto rounded-lg border border-gray-300 py-2.5 pl-4 pr-10 text-sm font-medium focus:border-objetivo-blue focus:outline-none focus:ring-2 focus:ring-objetivo-blue/20 bg-gray-50 shadow-sm"
+                            >
+                                <option value="Todas as Categorias">Todas as Categorias</option>
+                                {categoryData.filter((c: any) => c.Cancelamentos > 0 || c.Transferências > 0).map((cat: any) => (
+                                    <option key={cat.name} value={cat.name}>
+                                        {cat.name}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={periodSelect}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setPeriodSelect(val);
+                                    const end = format(new Date(), 'yyyy-MM-dd');
+                                    if (val === 'Mês Atual') setDateRange({ start: format(startOfMonth(new Date()), 'yyyy-MM-dd'), end });
+                                    else if (val === 'Últimos 3 Meses') setDateRange({ start: format(subMonths(new Date(), 3), 'yyyy-MM-dd'), end });
+                                    else if (val === 'Últimos 6 Meses') setDateRange({ start: format(subMonths(new Date(), 6), 'yyyy-MM-dd'), end });
+                                }}
+                                className="w-full sm:w-auto rounded-lg border border-gray-300 py-2.5 pl-4 pr-10 text-sm font-medium focus:border-objetivo-blue focus:outline-none focus:ring-2 focus:ring-objetivo-blue/20 bg-gray-50 shadow-sm"
+                            >
+                                <option value="Mês Atual">Mês Atual</option>
+                                <option value="Últimos 3 Meses">Últimos 3 Meses</option>
+                                <option value="Últimos 6 Meses">Últimos 6 Meses</option>
+                                <option value="Personalizado" hidden>Personalizado</option>
+                            </select>
                         </div>
                     </div>
 
-                    {categoryData.length === 0 ? (
-                        <div className="bg-gray-50 flex-1 min-h-0 text-center rounded-xl border border-gray-100 flex flex-col items-center justify-center p-6">
-                            <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
-                            <h3 className="text-sm font-medium text-gray-700">Nenhum dado registrado</h3>
-                            <p className="text-xs text-gray-500 mt-1 max-w-sm">Os motivos aparecerão aqui após validação aprovada na coordenação.</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="flex flex-col gap-6">
-                                {(() => {
-                                    const maxVal = Math.max(...categoryData.map((c: any) => Math.max(c.Cancelamentos, c.Transferências)), 1);
-                                    return categoryData.map((cat: any, idx: number) => (
-                                        <div key={idx}>
-                                            <p className="text-sm font-bold text-gray-800 mb-2">{cat.name}</p>
-                                            <div className="flex flex-col gap-[8px]">
-                                                {/* Cancelamento bar — only if > 0 */}
-                                                {cat.Cancelamentos > 0 && (
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-semibold text-red-500 w-[155px] shrink-0">Cancelamento de Matrícula</span>
-                                                        <div className="flex-1 flex items-center gap-2" style={{ maxWidth: '60%' }}>
-                                                            <div
-                                                                className="h-[12px] rounded-r-md transition-all duration-500"
-                                                                style={{
-                                                                    width: `${(cat.Cancelamentos / maxVal) * 100}%`,
-                                                                    minWidth: '8px',
-                                                                    backgroundColor: '#ef4444'
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-xs font-bold text-gray-700 w-[24px] text-right">{cat.Cancelamentos}</span>
-                                                    </div>
-                                                )}
-                                                {/* Transferência bar — only if > 0 */}
-                                                {cat.Transferências > 0 && (
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-semibold text-orange-500 w-[155px] shrink-0">Transferência</span>
-                                                        <div className="flex-1 flex items-center gap-2" style={{ maxWidth: '60%' }}>
-                                                            <div
-                                                                className="h-[12px] rounded-r-md transition-all duration-500"
-                                                                style={{
-                                                                    width: `${(cat.Transferências / maxVal) * 100}%`,
-                                                                    minWidth: '8px',
-                                                                    backgroundColor: '#f97316'
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-xs font-bold text-gray-700 w-[24px] text-right">{cat.Transferências}</span>
-                                                    </div>
-                                                )}
+                    {/* Body */}
+                    {(() => {
+                        let currCancels = 0;
+                        let currTransfers = 0;
+
+                        if (selectedCategory === 'Todas as Categorias') {
+                            currCancels = categoryData.reduce((acc: number, c: any) => acc + c.Cancelamentos, 0);
+                            currTransfers = categoryData.reduce((acc: number, c: any) => acc + c.Transferências, 0);
+                        } else {
+                            const found = categoryData.find((c: any) => c.name === selectedCategory);
+                            if (found) {
+                                currCancels = found.Cancelamentos;
+                                currTransfers = found.Transferências;
+                            }
+                        }
+
+                        const categoryTotal = currCancels + currTransfers;
+                        const cancelPerc = categoryTotal > 0 ? Math.round((currCancels / categoryTotal) * 100) : 0;
+                        const transferPerc = categoryTotal > 0 ? Math.round((currTransfers / categoryTotal) * 100) : 0;
+
+                        return (
+                            <div className="flex flex-col lg:flex-row gap-8">
+                                {/* 40% Left Column */}
+                                <div className="w-full lg:w-[40%] flex flex-col justify-center">
+                                    <div className="flex flex-col border border-gray-100 bg-gray-50/50 p-4 rounded-2xl gap-4 relative">
+                                        {/* Cancelamentos Card */}
+                                        <div className="bg-[#b91c1c] rounded-xl p-5 text-white flex flex-col items-center justify-center relative shadow-md h-[180px]">
+                                            <UserMinus className="w-6 h-6 absolute top-4 left-4 opacity-80" />
+                                            <div className="text-[48px] leading-none font-bold mt-2">
+                                                <AnimatedNumber value={currCancels} />
+                                            </div>
+                                            <div className="text-[24px] font-semibold mt-1 opacity-90"><AnimatedNumber value={cancelPerc} />%</div>
+                                            <div className="text-sm font-medium opacity-80 mt-1 uppercase tracking-wider">Cancelamentos</div>
+                                        </div>
+
+                                        {/* Divider */}
+                                        <div className="w-full h-px border-b border-dashed border-gray-300"></div>
+
+                                        {/* Transferências Card */}
+                                        <div className="bg-[#1e3a8a] rounded-xl p-5 text-white flex flex-col items-center justify-center relative shadow-md h-[180px]">
+                                            <ArrowRightLeft className="w-6 h-6 absolute top-4 left-4 opacity-80" />
+                                            <div className="text-[48px] leading-none font-bold mt-2">
+                                                <AnimatedNumber value={currTransfers} />
+                                            </div>
+                                            <div className="text-[24px] font-semibold mt-1 opacity-90"><AnimatedNumber value={transferPerc} />%</div>
+                                            <div className="text-sm font-medium opacity-80 mt-1 uppercase tracking-wider">Transferências</div>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-sm text-gray-500 mt-6 font-medium text-center">
+                                        Total geral: <span className="font-bold text-gray-700"><AnimatedNumber value={categoryTotal} /></span> casos no período
+                                    </p>
+                                </div>
+
+                                {/* 60% Right Column - Donut Chart */}
+                                <div className="w-full lg:w-[60%] flex flex-col items-center justify-center min-h-[350px] relative mt-4 lg:mt-0">
+                                    {categoryTotal === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
+                                            {/* Empty Donut Visual Placeholder */}
+                                            <div className="w-[220px] h-[220px] rounded-full border-[30px] border-gray-100 flex items-center justify-center">
+                                                <AlertCircle className="w-8 h-8 text-gray-300" />
+                                            </div>
+                                            <span className="font-medium mt-2">Sem dados no período</span>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full h-[320px] relative">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={[
+                                                            { name: 'Cancelamentos', value: currCancels, fill: '#dc2626' },
+                                                            { name: 'Transferências', value: currTransfers, fill: '#2563eb' }
+                                                        ].filter(d => d.value > 0)}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={60}
+                                                        outerRadius={110}
+                                                        dataKey="value"
+                                                        isAnimationActive={true}
+                                                        animationDuration={600}
+                                                        animationEasing="ease-out"
+                                                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                                                            const RADIAN = Math.PI / 180;
+                                                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                                                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                                            return (
+                                                                <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontWeight="bold" fontSize="16">
+                                                                    {`${(percent * 100).toFixed(0)}%`}
+                                                                </text>
+                                                            );
+                                                        }}
+                                                        labelLine={false}
+                                                    >
+                                                        {[
+                                                            { name: 'Cancelamentos', value: currCancels, fill: '#dc2626' },
+                                                            { name: 'Transferências', value: currTransfers, fill: '#2563eb' }
+                                                        ].filter(d => d.value > 0).map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                        ))}
+                                                    </Pie>
+                                                    <RechartsTooltip formatter={(val: any) => [val, 'casos']} />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                            {/* Center Text */}
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                                <span className="text-4xl font-extrabold text-gray-800 tracking-tight leading-none"><AnimatedNumber value={categoryTotal} /></span>
+                                                <span className="text-sm font-medium text-gray-500 mt-1">casos</span>
                                             </div>
                                         </div>
-                                    ));
-                                })()}
+                                    )}
+
+                                    <div className="flex flex-row items-center justify-center gap-6 mt-6 shrink-0 text-sm font-semibold text-gray-600">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-3.5 h-3.5 rounded-full bg-[#dc2626] shadow-sm"></span>
+                                            Cancelamento de Matrícula
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-3.5 h-3.5 rounded-full bg-[#2563eb] shadow-sm"></span>
+                                            Transferência
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="mt-6 shrink-0 flex justify-center w-full">
-                                <span className="text-xs font-semibold text-gray-400">
-                                    Baseado em {categoryData.reduce((acc: any, curr: any) => acc + curr.total, 0)} casos registrados
-                                </span>
-                            </div>
-                        </>
-                    )}
+                        );
+                    })()}
                 </motion.div>
             </div>
         </div >
