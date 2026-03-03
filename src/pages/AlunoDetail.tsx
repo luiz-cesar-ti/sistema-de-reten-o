@@ -687,7 +687,9 @@ export function AlunoDetail() {
                                                     {log.action === 'reason_rejected' && 'Rejeitou um motivo'}
                                                     {log.action === 'coordination_info_updated' && 'Editou as informações da coordenação'}
                                                     {log.action === 'student_created' && 'Registro de aluno criado'}
-                                                    {!['reason_added', 'reason_approved', 'reason_rejected', 'coordination_info_updated', 'student_created'].includes(log.action) && `Ação: ${log.action}`}
+                                                    {log.action === 'student_approved' && 'Aprovou o novo registro de aluno'}
+                                                    {log.action === 'student_rejected' && 'Rejeitou o novo registro de aluno'}
+                                                    {!['reason_added', 'reason_approved', 'reason_rejected', 'coordination_info_updated', 'student_created', 'student_approved', 'student_rejected'].includes(log.action) && `Ação: ${log.action}`}
                                                 </p>
                                                 <p className="text-xs text-gray-400 mt-0.5">{format(parseISO(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
                                             </div>

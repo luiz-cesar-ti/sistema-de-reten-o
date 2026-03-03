@@ -150,8 +150,8 @@ export function AlunoForm() {
                 toast.success(
                     (t) => (
                         <div className="flex flex-col gap-2">
-                            <p className="font-bold text-objetivo-blue">Registro Enviado para Aprovação!</p>
-                            <p className="text-sm">O aluno foi cadastrado, mas a exclusão ou transferência só será efetivada após a aprovação da Direção.</p>
+                            <p className="font-bold text-objetivo-blue">Registro Enviado para Aprovação da Direção!</p>
+                            <p className="text-sm">O aluno foi cadastrado, mas só será efetivado após a aprovação da Direção.</p>
                             <button
                                 onClick={() => toast.dismiss(t.id)}
                                 className="mt-2 bg-objetivo-blue text-white py-1 px-3 rounded text-sm w-fit"
@@ -162,7 +162,7 @@ export function AlunoForm() {
                     ),
                     { duration: 8000 } // Tost com duração estendida para garantir a leitura
                 );
-                navigate('/alunos');
+                navigate('/');
             } else {
                 toast.success('Registro criado com sucesso!');
                 navigate(`/alunos/${studentData.id}`);
