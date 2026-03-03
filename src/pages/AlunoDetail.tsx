@@ -68,6 +68,13 @@ export function AlunoDetail() {
                 .single();
 
             if (studentError) throw studentError;
+
+            // Se o aluno ainda está pendente, ninguém pode acessar os detalhes diretamente
+            if (studentData.approval_status === 'pending') {
+                navigate('/pendencias');
+                return;
+            }
+
             setStudent(studentData);
 
             const { data: reasonsData, error: reasonsError } = await supabase

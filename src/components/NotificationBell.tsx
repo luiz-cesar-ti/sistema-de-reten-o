@@ -202,10 +202,8 @@ export function NotificationBell() {
     const handleNotificationClick = (n: NotificationItem) => {
         setIsDropdownOpen(false);
         markAsRead([n.id]);
-        if (n.type === 'reason') {
+        if (n.type === 'reason' || n.type === 'student') {
             navigate('/pendencias');
-        } else if (n.type === 'student' && n.studentId) {
-            navigate(`/alunos/${n.studentId}`);
         }
     };
 

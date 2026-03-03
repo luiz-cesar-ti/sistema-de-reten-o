@@ -283,9 +283,11 @@ export function Pendencias() {
                                             <Check className="w-4 h-4" /> Aprovar
                                         </button>
                                     </div>
-                                    <Link to={`/alunos/${item.students.id}`} className="text-xs text-gray-500 hover:text-objetivo-blue flex items-center gap-1 mt-2">
-                                        <Eye className="w-3 h-3" /> Ver histórico completo
-                                    </Link>
+                                    {item.type !== 'new_student' && (
+                                        <Link to={`/alunos/${item.students.id}`} className="text-xs text-gray-500 hover:text-objetivo-blue flex items-center gap-1 mt-2">
+                                            <Eye className="w-3 h-3" /> Ver histórico completo
+                                        </Link>
+                                    )}
                                 </div>
                             </motion.div>
                         ))}
