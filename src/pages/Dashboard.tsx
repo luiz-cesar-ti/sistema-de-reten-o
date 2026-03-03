@@ -42,7 +42,7 @@ const levelsMap: Record<string, string> = {
 const COLORS = ['#1a237e', '#FFA000', '#f44336', '#4caf50'];
 
 // --- SWR FETCHER ---
-const fetchDashboardData = async ([_key, activeUnitId, dateRange, needsPendentes]: [string, string, { start: string, end: string }, boolean]) => {
+const fetchDashboardData = async ([_key, activeUnitId, dateRange, userContext]: [string, string, { start: string, end: string }, { isApprover: boolean, profileId: string | undefined }]) => {
     if (!activeUnitId) throw new Error("No active unit");
 
     const currentMonthStart = new Date();
@@ -57,6 +57,7 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, needsPendentes
     const [
         studentsResult,
         pendentesResult,
+        pendentesResult2,
         cancelsResult,
         transfersResult
     ] = await Promise.all([
@@ -70,14 +71,32 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, needsPendentes
             .lte('created_at', endD.toISOString())
             .order('created_at', { ascending: false }),
 
-        needsPendentes
+        userContext.isApprover
             ? supabase
                 .from('student_reasons')
                 .select('id, students!inner(unit_id, is_deleted)', { count: 'exact', head: true })
                 .eq('approval_status', 'pending')
                 .eq('students.unit_id', activeUnitId)
                 .eq('students.is_deleted', false)
-            : Promise.resolve({ count: 0 }),
+            : userContext.profileId ? supabase
+                .from('student_reasons')
+                .select('id, students!inner(unit_id, is_deleted)', { count: 'exact', head: true })
+                .eq('approval_status', 'pending')
+                .eq('created_by', userContext.profileId)
+                .eq('students.unit_id', activeUnitId)
+                .eq('students.is_deleted', false)
+                : Promise.resolve({ count: 0 }),
+
+        // For non-approvers, we also need to sum up new students pending that they created.
+        userContext.isApprover
+            ? Promise.resolve({ count: 0 })
+            : userContext.profileId ? supabase
+                .from('students')
+                .select('id', { count: 'exact', head: true })
+                .eq('approval_status', 'pending')
+                .eq('created_by', userContext.profileId)
+                .eq('unit_id', activeUnitId)
+                : Promise.resolve({ count: 0 }),
 
         supabase.from('students').select('id', { count: 'exact', head: true })
             .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'cancelamento'),
@@ -87,7 +106,7 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, needsPendentes
     ]);
 
     const students = studentsResult.data || [];
-    const pendentesCount = pendentesResult.count || 0;
+    const pendentesCount = (pendentesResult.count || 0) + (pendentesResult2?.count || 0);
     const totalCancels = cancelsResult.count || 0;
     const totalTransfers = transfersResult.count || 0;
 
@@ -170,7 +189,7 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, needsPendentes
 // --- END FETCHER ---
 
 export function Dashboard() {
-    const { activeUnitId, hasPrivilege, units } = useAuth();
+    const { activeUnitId, hasPrivilege, units, profile } = useAuth();
     const activeUnit = units.find(u => u.id === activeUnitId);
 
     const [dateRange, setDateRange] = useState({
@@ -180,10 +199,11 @@ export function Dashboard() {
     const [selectedCategory, setSelectedCategory] = useState<string>('Todas as Categorias');
     const [periodSelect, setPeriodSelect] = useState<string>('Últimos 6 Meses');
 
-    const needsPendentes = hasPrivilege('admin') || hasPrivilege('diretor') || hasPrivilege('coordenacao');
+    const isApprover = hasPrivilege('admin') || hasPrivilege('diretor');
+    const userContext = { isApprover, profileId: profile?.id };
 
     const { data, isLoading } = useSWR(
-        activeUnitId ? ['dashboard', activeUnitId, dateRange, needsPendentes] : null,
+        activeUnitId ? ['dashboard', activeUnitId, dateRange, userContext] : null,
         fetchDashboardData,
         {
             revalidateOnFocus: false, // Evita refetches excessivos ao trocar de aba do navegador
