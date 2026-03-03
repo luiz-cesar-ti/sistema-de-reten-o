@@ -30,7 +30,7 @@ export function Pendencias() {
                 .from('student_reasons')
                 .select(`
           id, reason_text, created_at, created_by_name,
-          students!inner(id, full_name, ra, unit_id, serie, education_level, status, is_deleted)
+          students!inner(id, full_name, unit_id, serie, education_level, status, is_deleted)
         `)
                 .eq('approval_status', 'pending')
                 .eq('students.unit_id', activeUnitId)
