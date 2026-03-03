@@ -167,10 +167,10 @@ export function Invite() {
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-[#0d1b2a] px-4 py-8 font-sans">
-            <div className="w-full max-w-lg bg-[#1b263b]/80 backdrop-blur-sm rounded-2xl shadow-2xl p-12 border border-white/5">
+            <div className="w-full max-w-[500px] bg-[#1b263b]/80 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-8 border border-white/5">
                 {/* Branding */}
-                <div className="flex flex-col items-center mb-8">
-                    <img src="/logo-objetivo.png" alt="Objetivo Logo" className="h-16 object-contain mb-4 drop-shadow-lg" />
+                <div className="flex flex-col items-center mb-6">
+                    <img src="/logo-objetivo.png" alt="Objetivo Logo" className="h-14 object-contain mb-3 drop-shadow-lg" />
                     <h1 className="text-2xl font-black text-white uppercase tracking-widest text-center leading-tight">
                         Sistema de
                     </h1>
@@ -183,54 +183,54 @@ export function Invite() {
                     </p>
                 </div>
 
-                <form className="space-y-5" onSubmit={handleSubmit}>
+                <form className="space-y-4" onSubmit={handleSubmit}>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">E-mail</label>
-                        <input type="email" disabled value={inviteData.email} className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3.5 px-4 text-white/50 sm:text-sm outline-none cursor-not-allowed" />
+                        <label className="block text-xs font-bold text-white tracking-wider uppercase mb-1.5">E-mail</label>
+                        <input type="email" disabled value={inviteData.email} className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3 px-4 text-white/50 sm:text-sm outline-none cursor-not-allowed" />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Nome Completo</label>
+                        <label className="block text-xs font-bold text-white tracking-wider uppercase mb-1.5">Nome Completo</label>
                         <input
                             type="text"
                             required
                             placeholder="Seu nome completo"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
-                            className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3.5 px-4 text-white placeholder:text-gray-600 focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 sm:text-sm transition-colors outline-none"
+                            className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3 px-4 text-white placeholder:text-gray-600 focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 sm:text-sm transition-colors outline-none"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Senha</label>
+                        <label className="block text-xs font-bold text-white tracking-wider uppercase mb-1.5">Senha</label>
                         <input
                             type="password"
                             required
                             value={password}
                             onChange={handlePasswordChange}
-                            className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3.5 px-4 text-white placeholder:text-gray-600 focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 sm:text-sm transition-colors outline-none"
+                            className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3 px-4 text-white placeholder:text-gray-600 focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 sm:text-sm transition-colors outline-none"
                         />
-                        <div className="mt-3">
+                        <div className="mt-2.5">
                             <div className="flex h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                                 <div className={`h-full ${strengthColor} transition-all duration-300 rounded-full`} style={{ width: `${(strengthCount / 4) * 100}%` }}></div>
                             </div>
                             <ul className="grid grid-cols-2 gap-1 mt-2 text-xs">
-                                <li className={`${passwordStrength.length ? 'text-green-400' : 'text-gray-600'}`}>Mínimo 8 chars</li>
-                                <li className={`${passwordStrength.uppercase ? 'text-green-400' : 'text-gray-600'}`}>1 letra maiúscula</li>
-                                <li className={`${passwordStrength.number ? 'text-green-400' : 'text-gray-600'}`}>1 número</li>
-                                <li className={`${passwordStrength.special ? 'text-green-400' : 'text-gray-600'}`}>1 char especial</li>
+                                <li className={`${passwordStrength.length ? 'text-green-400' : 'text-white'}`}>Mínimo 8 chars</li>
+                                <li className={`${passwordStrength.uppercase ? 'text-green-400' : 'text-white'}`}>1 letra maiúscula</li>
+                                <li className={`${passwordStrength.number ? 'text-green-400' : 'text-white'}`}>1 número</li>
+                                <li className={`${passwordStrength.special ? 'text-green-400' : 'text-white'}`}>1 char especial (@!#$%&)</li>
                             </ul>
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Confirmar Senha</label>
+                        <label className="block text-xs font-bold text-white tracking-wider uppercase mb-1.5">Confirmar Senha</label>
                         <input
                             type="password"
                             required
                             value={passwordConfirm}
                             onChange={(e) => setPasswordConfirm(e.target.value)}
-                            className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3.5 px-4 text-white placeholder:text-gray-600 focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 sm:text-sm transition-colors outline-none"
+                            className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3 px-4 text-white placeholder:text-gray-600 focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/30 sm:text-sm transition-colors outline-none"
                         />
                     </div>
 
@@ -238,7 +238,7 @@ export function Invite() {
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-[#0d1b2a] bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 focus:outline-none disabled:opacity-50 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                            className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-[#0d1b2a] bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 focus:outline-none disabled:opacity-50 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                         >
                             {submitting ? (
                                 <span className="flex items-center gap-2">
