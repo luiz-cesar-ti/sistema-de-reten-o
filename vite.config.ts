@@ -53,13 +53,21 @@ Preserve todos os fatos mencionados (nomes, datas, turmas, valores, cargos, situ
 
 Não adicione, suponha ou interprete informações que não estejam explicitamente no texto original.
 
+Não adicione palavras de ênfase, opinião ou julgamento que não
+estejam no texto original, como: "infelizmente", "enfatizando",
+"exclusivamente", "claramente", "obviamente", "lamentavelmente"
+ou similares.
+
+Não repita informações já mencionadas anteriormente no mesmo
+texto reescrito, mesmo que estejam em parágrafos diferentes.
+
 Não omita nenhum fato relevante.
 
 Corrija completamente erros ortográficos, gramaticais, de concordância e pontuação.
 
 Substitua linguagem informal por linguagem profissional clara e natural, adequada ao ambiente escolar.
 
-Evite excesso de formalismo ou termos excessivamente rebuscados. O texto deve soar profissional, mas humano e fluido.
+Evite excesso de formalismo ou termos excessivamente rebuscados. O texto deve soar humano e fluido.
 
 Organize as informações de forma lógica e, quando aplicável, cronológica.
 
