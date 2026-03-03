@@ -190,12 +190,15 @@ export function Dashboard() {
         }
     );
 
-    if (isLoading && !data) {
-        return <div className="p-8"><div className="animate-pulse flex flex-col gap-4"><div className="h-32 bg-gray-200 rounded-xl"></div><div className="h-64 bg-gray-200 rounded-xl"></div></div></div>;
-    }
-
     // Default values se 'data' ainda não estiver pronto
-    const { metrics = { cancelamentos: 0, transferencias: 0, pendentes: 0, mesAtual: 0 }, chartData = [], levelData = [], categoryData = [], indicators = { coord: 0, revert: 0, dir: 0 }, recent = [] } = data || {};
+    const {
+        metrics = { cancelamentos: 0, transferencias: 0, pendentes: 0, mesAtual: 0 },
+        chartData = [],
+        levelData = [],
+        categoryData = [],
+        indicators = { coord: 0, revert: 0, dir: 0 },
+        recent = []
+    } = data || {};
 
     // Auto-reset category if the selected one is no longer in the filtered data range
     useEffect(() => {
@@ -206,6 +209,10 @@ export function Dashboard() {
             }
         }
     }, [categoryData, selectedCategory]);
+
+    if (isLoading && !data) {
+        return <div className="p-8"><div className="animate-pulse flex flex-col gap-4"><div className="h-32 bg-gray-200 rounded-xl"></div><div className="h-64 bg-gray-200 rounded-xl"></div></div></div>;
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -278,7 +285,38 @@ export function Dashboard() {
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                <Pie data={levelData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                <Pie
+                                    data={levelData}
+                                    innerRadius={50}
+                                    outerRadius={75}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    isAnimationActive={true}
+                                    label={(props: any) => {
+                                        if (!props || !props.value) return null;
+                                        const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } = props;
+                                        const RADIAN = Math.PI / 180;
+                                        // Puxa o rótulo com segurança para a borda externa permitindo a linha de conexão se formar
+                                        const rInfo = (outerRadius || 75) + 25;
+                                        const angle = midAngle || 0;
+                                        const x = cx + rInfo * Math.cos(-angle * RADIAN);
+                                        const y = cy + rInfo * Math.sin(-angle * RADIAN);
+
+                                        return (
+                                            <text
+                                                x={x}
+                                                y={y}
+                                                fill="#374151"
+                                                textAnchor={x > cx ? 'start' : 'end'}
+                                                dominantBaseline="central"
+                                                className="text-[12px] font-bold"
+                                            >
+                                                {`${value} (${((percent || 0) * 100).toFixed(0)}%)`}
+                                            </text>
+                                        );
+                                    }}
+                                    labelLine={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '2 2' }}
+                                >
                                     {levelData.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}

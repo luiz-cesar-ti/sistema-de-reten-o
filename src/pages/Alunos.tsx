@@ -77,8 +77,7 @@ export function Alunos() {
     }, [activeUnitId, mutate]);
 
     const filteredStudents = students.filter(s => {
-        const matchSearch = s.full_name.toLowerCase().includes(search.toLowerCase()) ||
-            s.ra.toLowerCase().includes(search.toLowerCase());
+        const matchSearch = s.full_name.toLowerCase().includes(search.toLowerCase());
         const matchType = filterType ? s.status === filterType : true;
         const matchLevel = filterLevel ? s.education_level === filterLevel : true;
         const matchCategory = filterCategory ? s.categoria_motivo === filterCategory : true;
@@ -86,7 +85,7 @@ export function Alunos() {
     });
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Alunos</h1>
@@ -110,7 +109,7 @@ export function Alunos() {
                     </div>
                     <input
                         type="text"
-                        placeholder="Buscar por nome ou RA..."
+                        placeholder="Buscar por nome..."
                         className="block w-full rounded-md border-0 py-2 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-objetivo-blue sm:text-sm sm:leading-6"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -166,7 +165,7 @@ export function Alunos() {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aluno / RA</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aluno</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ensino / Série</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
@@ -187,7 +186,6 @@ export function Alunos() {
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">{student.full_name}</div>
-                                            <div className="text-sm text-gray-500">{student.ra}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">{levelsMap[student.education_level]}</div>

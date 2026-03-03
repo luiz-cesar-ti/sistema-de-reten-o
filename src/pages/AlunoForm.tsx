@@ -13,7 +13,6 @@ import { AITextEnhancer } from '../components/AITextEnhancer';
 
 const formSchema = z.object({
     fullName: z.string().min(3, 'Nome deve ter no mínimo 3 caracteres'),
-    ra: z.string().min(1, 'RA é obrigatório'),
     educationLevel: z.enum(['educacao_infantil', 'ensino_fundamental_1', 'ensino_fundamental_2', 'ensino_medio'], {
         message: 'Selecione o nível de ensino',
     }),
@@ -110,7 +109,6 @@ export function AlunoForm() {
 
             // 1. Sanitize all text fields
             const cleanFullName = DOMPurify.sanitize(data.fullName.trim());
-            const cleanRA = DOMPurify.sanitize(data.ra.trim());
             const cleanSerie = DOMPurify.sanitize(data.serie.trim());
             const cleanReversalReason = data.coordinationNoReversalReason ? DOMPurify.sanitize(data.coordinationNoReversalReason.trim()) : null;
             const cleanReasonText = DOMPurify.sanitize(data.reasonText.trim());
@@ -123,7 +121,6 @@ export function AlunoForm() {
             // 2. Insert Student
             const { data: studentData, error: studentError } = await supabase.from('students').insert({
                 full_name: cleanFullName,
-                ra: cleanRA,
                 unit_id: activeUnitId,
                 education_level: data.educationLevel,
                 serie: cleanSerie,
@@ -175,12 +172,6 @@ export function AlunoForm() {
                             <label className="block text-sm font-medium text-gray-700">Nome completo do aluno <span className="text-red-500">*</span></label>
                             <input type="text" placeholder="Digite o nome completo do aluno" {...register('fullName')} className={`mt-1 block w-full rounded-md border-0 py-2 px-3 text-gray-900 ring-1 ring-inset ${errors.fullName ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-objetivo-blue'} sm:text-sm`} />
                             {errors.fullName && <p className="mt-1 text-xs text-red-500">{errors.fullName.message}</p>}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">RA <span className="text-red-500">*</span></label>
-                            <input type="text" placeholder="Digite o RA do aluno" {...register('ra')} className={`mt-1 block w-full rounded-md border-0 py-2 px-3 text-gray-900 ring-1 ring-inset ${errors.ra ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-objetivo-blue'} sm:text-sm`} />
-                            {errors.ra && <p className="mt-1 text-xs text-red-500">{errors.ra.message}</p>}
                         </div>
 
                         <div>

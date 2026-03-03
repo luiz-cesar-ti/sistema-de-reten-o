@@ -176,7 +176,7 @@ export function Pendencias() {
                                     <Link to={`/alunos/${item.students.id}`} className="font-bold text-objetivo-blue hover:underline">
                                         {item.students.full_name}
                                     </Link>
-                                    <p className="text-xs text-gray-500">RA: {item.students.ra} • {item.students.serie}</p>
+                                    <p className="text-xs text-gray-500">{item.students.serie}</p>
                                     <span className={`mt-2 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${item.students.status === 'cancelamento' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
                                         }`}>
                                         {item.students.status === 'cancelamento' ? 'Cancelamento' : 'Transferência'}

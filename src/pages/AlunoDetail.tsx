@@ -374,16 +374,10 @@ export function AlunoDetail() {
                         </div>
 
                         <div>
-                            {/* RA e Unidade */}
-                            <div className="grid grid-cols-2">
-                                <div className="px-6 py-3">
-                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">RA</p>
-                                    <p className="text-sm font-semibold text-gray-900">{student.ra}</p>
-                                </div>
-                                <div className="px-6 py-3">
-                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Unidade</p>
-                                    <p className="text-sm font-semibold text-gray-900">{student.units?.name}</p>
-                                </div>
+                            {/* Unidade */}
+                            <div className="px-6 py-3 border-b border-gray-100">
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Unidade</p>
+                                <p className="text-sm font-semibold text-gray-900">{student.units?.name}</p>
                             </div>
 
                             {/* Ensino e Série */}
