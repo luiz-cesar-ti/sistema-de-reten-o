@@ -19,8 +19,7 @@ export function Invite() {
     const [passwordStrength, setPasswordStrength] = useState({
         length: false,
         uppercase: false,
-        number: false,
-        special: false
+        number: false
     });
 
     useEffect(() => {
@@ -57,8 +56,7 @@ export function Invite() {
         setPasswordStrength({
             length: val.length >= 8,
             uppercase: /[A-Z]/.test(val),
-            number: /[0-9]/.test(val),
-            special: /[^A-Za-z0-9]/.test(val)
+            number: /[0-9]/.test(val)
         });
     };
 
@@ -71,7 +69,7 @@ export function Invite() {
             return;
         }
 
-        if (!passwordStrength.length || !passwordStrength.uppercase || !passwordStrength.number || !passwordStrength.special) {
+        if (!passwordStrength.length || !passwordStrength.uppercase || !passwordStrength.number) {
             toast.error('A senha não atende aos requisitos mínimos.');
             return;
         }
@@ -163,7 +161,7 @@ export function Invite() {
     }
 
     const strengthCount = Object.values(passwordStrength).filter(Boolean).length;
-    const strengthColor = strengthCount <= 1 ? 'bg-red-500' : strengthCount <= 3 ? 'bg-yellow-500' : 'bg-green-500';
+    const strengthColor = strengthCount <= 1 ? 'bg-red-500' : strengthCount === 2 ? 'bg-yellow-500' : 'bg-green-500';
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-[#0d1b2a] px-4 py-8 font-sans">
@@ -212,13 +210,12 @@ export function Invite() {
                         />
                         <div className="mt-2.5">
                             <div className="flex h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                <div className={`h-full ${strengthColor} transition-all duration-300 rounded-full`} style={{ width: `${(strengthCount / 4) * 100}%` }}></div>
+                                <div className={`h-full ${strengthColor} transition-all duration-300 rounded-full`} style={{ width: `${(strengthCount / 3) * 100}%` }}></div>
                             </div>
-                            <ul className="grid grid-cols-2 gap-1 mt-2 text-xs">
+                            <ul className="grid grid-cols-1 sm:grid-cols-3 gap-1 mt-2 text-xs">
                                 <li className={`${passwordStrength.length ? 'text-green-400' : 'text-white'}`}>Mínimo 8 chars</li>
                                 <li className={`${passwordStrength.uppercase ? 'text-green-400' : 'text-white'}`}>1 letra maiúscula</li>
                                 <li className={`${passwordStrength.number ? 'text-green-400' : 'text-white'}`}>1 número</li>
-                                <li className={`${passwordStrength.special ? 'text-green-400' : 'text-white'}`}>1 char especial (@!#$%&)</li>
                             </ul>
                         </div>
                     </div>

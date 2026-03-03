@@ -231,8 +231,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (inviteError || !inviteToken) return false;
 
-            // Create profile
-            const { error: profileInsertError } = await supabase.from('profiles').insert({
+            // Create or update profile silently ignoring unique constraint (409)
+            const { error: profileInsertError } = await supabase.from('profiles').upsert({
                 id: userId,
                 full_name: fullName || inviteToken.full_name || email,
                 email: email,
@@ -240,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 privileges: [],
                 unit_id: inviteToken.unit_id,
                 is_active: true
-            });
+            }, { onConflict: 'id' });
 
             if (profileInsertError) {
                 console.error('Profile insert error:', profileInsertError);
@@ -248,10 +248,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             // Create user_units
-            await supabase.from('user_units').insert({
+            await supabase.from('user_units').upsert({
                 user_id: userId,
                 unit_id: inviteToken.unit_id
-            });
+            }, { onConflict: 'user_id,unit_id' });
 
             // Audit log
             await supabase.from('audit_logs').insert({
