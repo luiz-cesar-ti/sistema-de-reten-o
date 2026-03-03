@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { subMonths, startOfMonth, format, parseISO } from 'date-fns';
+import { subMonths, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
@@ -35,6 +35,7 @@ export function Dashboard() {
     const [levelData, setLevelData] = useState<any[]>([]);
     const [indicators, setIndicators] = useState({ coord: 0, revert: 0, dir: 0 });
     const [recent, setRecent] = useState<any[]>([]);
+    const [categoryData, setCategoryData] = useState<any[]>([]);
 
     const [dateRange, setDateRange] = useState({
         start: format(subMonths(new Date(), 5), 'yyyy-MM-dd'),
@@ -50,7 +51,9 @@ export function Dashboard() {
     const fetchDashboardData = async () => {
         setLoading(true);
         try {
-            const currentMonthStart = startOfMonth(new Date()).toISOString();
+            const currentMonthStart = new Date();
+            currentMonthStart.setDate(1);
+            currentMonthStart.setHours(0, 0, 0, 0);
 
             // Adjust dates avoiding JS UTC parsing bug on YYYY-MM-DD strings
             const startStr = dateRange.start + 'T00:00:00';
@@ -58,20 +61,19 @@ export function Dashboard() {
             const startD = new Date(startStr);
             const endD = new Date(endStr);
 
-            // Fire ALL queries in parallel instead of sequentially
+            // Fire queries in parallel — only 4 needed (removed month count query)
             const needsPendentes = hasPrivilege('admin') || hasPrivilege('diretor') || hasPrivilege('coordenacao');
 
             const [
                 studentsResult,
                 pendentesResult,
                 cancelsResult,
-                transfersResult,
-                monthResult,
+                transfersResult
             ] = await Promise.all([
-                // 1. Students for date range (only needed columns)
+                // 1. Students for date range
                 supabase
                     .from('students')
-                    .select('id, status, education_level, created_at, full_name, serie, spoke_with_coordination, coordination_reversed, spoke_with_direction')
+                    .select('id, status, education_level, created_at, full_name, serie, spoke_with_coordination, coordination_reversed, spoke_with_direction, categoria_motivo')
                     .eq('unit_id', activeUnitId)
                     .eq('is_deleted', false)
                     .gte('created_at', startD.toISOString())
@@ -94,89 +96,100 @@ export function Dashboard() {
 
                 // 4. Total transfers (all time)
                 supabase.from('students').select('id', { count: 'exact', head: true })
-                    .eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'transferencia'),
-
-                // 5. This month total
-                supabase.from('students').select('id', { count: 'exact', head: true })
-                    .eq('unit_id', activeUnitId).eq('is_deleted', false).gte('created_at', currentMonthStart),
+                    .eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'transferencia')
             ]);
 
             const students = studentsResult.data;
             const pendentesCount = pendentesResult.count || 0;
             const totalCancels = cancelsResult.count;
             const totalTransfers = transfersResult.count;
-            const monthTotal = monthResult.count;
 
             if (!students) {
                 setLoading(false);
                 return;
             }
 
-            setMetrics({
-                cancelamentos: totalCancels || 0,
-                transferencias: totalTransfers || 0,
-                pendentes: pendentesCount,
-                mesAtual: monthTotal || 0,
-            });
-
-            // Chart 1: Group By Month dynamically from Start to End (Reverse Chronological: Newest on Left)
+            // Pre-build month map for Chart 1
             const monthMap = new Map();
             let loopDate = new Date(endD);
-            loopDate.setDate(1); // align to month start
+            loopDate.setDate(1);
             loopDate.setHours(0, 0, 0, 0);
-
             const startMonth = new Date(startD);
             startMonth.setDate(1);
             startMonth.setHours(0, 0, 0, 0);
-
             while (loopDate >= startMonth) {
                 const ym = format(loopDate, 'yyyy-MM');
-                monthMap.set(ym, {
-                    name: format(loopDate, 'MMM/yy', { locale: ptBR }),
-                    yearMonth: ym,
-                    Cancelamentos: 0,
-                    Transferências: 0
-                });
+                monthMap.set(ym, { name: format(loopDate, 'MMM/yy', { locale: ptBR }), yearMonth: ym, Cancelamentos: 0, Transferências: 0 });
                 loopDate.setMonth(loopDate.getMonth() - 1);
             }
 
+            // === SINGLE PASS over students: compute all charts + indicators ===
+            const lvlMap: Record<string, number> = {};
+            const catMap: Record<string, { cancelamentos: number, transferencias: number }> = {};
+            let spokeCoord = 0, reverted = 0, spokeDir = 0, mesAtualCount = 0;
+
             students.forEach(s => {
+                // Chart 1: Monthly grouping
                 const dText = format(parseISO(s.created_at), 'yyyy-MM');
                 if (monthMap.has(dText)) {
                     const g = monthMap.get(dText);
                     if (s.status === 'cancelamento') g.Cancelamentos++;
                     if (s.status === 'transferencia') g.Transferências++;
                 }
-            });
-            setChartData(Array.from(monthMap.values()));
 
-            // Chart 2: Levels distribution
-            const lvlMap: Record<string, number> = {};
-            students.forEach(s => {
+                // Chart 2: Level distribution
                 const nm = levelsMap[s.education_level] || s.education_level;
                 lvlMap[nm] = (lvlMap[nm] || 0) + 1;
-            });
-            setLevelData(Object.entries(lvlMap).map(([name, value]) => ({ name, value })));
 
-            // Indicators: 
-            let spokeCoord = 0;
-            let reverted = 0;
-            let spokeDir = 0;
-            students.forEach(s => {
+                // Chart 3: Category breakdown
+                const cat = s.categoria_motivo || 'Não Informado';
+                if (!catMap[cat]) catMap[cat] = { cancelamentos: 0, transferencias: 0 };
+                if (s.status === 'cancelamento') catMap[cat].cancelamentos++;
+                else if (s.status === 'transferencia') catMap[cat].transferencias++;
+
+                // Indicators
                 if (s.spoke_with_coordination) spokeCoord++;
                 if (s.coordination_reversed) reverted++;
                 if (s.spoke_with_direction) spokeDir++;
+
+                // Month count (replaces query #5)
+                if (new Date(s.created_at) >= currentMonthStart) mesAtualCount++;
             });
+
+            // Set all state from single-pass results
             const totalS = students.length || 1;
             const totalCoord = spokeCoord || 1;
 
+            setMetrics({
+                cancelamentos: totalCancels || 0,
+                transferencias: totalTransfers || 0,
+                pendentes: pendentesCount,
+                mesAtual: mesAtualCount,
+            });
+
+            setChartData(Array.from(monthMap.values()));
+            setLevelData(Object.entries(lvlMap).map(([name, value]) => ({ name, value })));
+
+            const processedCategories = Object.entries(catMap)
+                .map(([name, counts]) => {
+                    const total = counts.cancelamentos + counts.transferencias;
+                    return {
+                        name,
+                        Cancelamentos: counts.cancelamentos,
+                        Transferências: counts.transferencias,
+                        total,
+                        percent: students.length > 0 ? Math.round((total / students.length) * 100) : 0
+                    };
+                })
+                .filter(cat => cat.total > 0)
+                .sort((a, b) => b.total - a.total);
+
+            setCategoryData(processedCategories);
             setIndicators({
                 coord: Math.round((spokeCoord / totalS) * 100),
                 revert: Math.round((reverted / totalCoord) * 100),
                 dir: Math.round((spokeDir / totalS) * 100),
             });
-
-            // Recent 5
             setRecent(students.slice(0, 5));
 
         } catch (err) {
@@ -311,12 +324,9 @@ export function Dashboard() {
                         {recent.length === 0 ? (
                             <p className="text-gray-500 text-sm py-4">Nenhum registro encontrado.</p>
                         ) : (
-                            recent.map((s, idx) => (
-                                <motion.div
+                            recent.map((s) => (
+                                <div
                                     key={s.id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.9 + (idx * 0.1) }}
                                     className="py-3 flex items-center justify-between"
                                 >
                                     <div className="flex-1 min-w-0 pr-4">
@@ -333,10 +343,95 @@ export function Dashboard() {
                                             <ArrowRight className="w-5 h-5" />
                                         </Link>
                                     </div>
-                                </motion.div>
+                                </div>
                             ))
                         )}
                     </div>
+                </motion.div>
+
+                {/* Seção 6: Análise de Motivos */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }}
+                    className="bg-white p-6 rounded-xl shadow-sm lg:col-span-3 flex flex-col"
+                >
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 shrink-0">
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-800">Principais Motivos de Desistência</h3>
+                            <p className="text-sm text-gray-500">Distribuição por tipo de caso</p>
+                        </div>
+                        <div className="flex items-center gap-4 mt-2 sm:mt-0 text-sm font-medium text-gray-600">
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                                Cancelamento de Matrícula
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-3 h-3 rounded-full bg-orange-500"></span>
+                                Transferências
+                            </div>
+                        </div>
+                    </div>
+
+                    {categoryData.length === 0 ? (
+                        <div className="bg-gray-50 flex-1 min-h-0 text-center rounded-xl border border-gray-100 flex flex-col items-center justify-center p-6">
+                            <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
+                            <h3 className="text-sm font-medium text-gray-700">Nenhum dado registrado</h3>
+                            <p className="text-xs text-gray-500 mt-1 max-w-sm">Os motivos aparecerão aqui após validação aprovada na coordenação.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex flex-col gap-6">
+                                {(() => {
+                                    const maxVal = Math.max(...categoryData.map((c: any) => Math.max(c.Cancelamentos, c.Transferências)), 1);
+                                    return categoryData.map((cat: any, idx: number) => (
+                                        <div key={idx}>
+                                            <p className="text-sm font-bold text-gray-800 mb-2">{cat.name}</p>
+                                            <div className="flex flex-col gap-[8px]">
+                                                {/* Cancelamento bar — only if > 0 */}
+                                                {cat.Cancelamentos > 0 && (
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xs font-semibold text-red-500 w-[155px] shrink-0">Cancelamento de Matrícula</span>
+                                                        <div className="flex-1 flex items-center gap-2" style={{ maxWidth: '60%' }}>
+                                                            <div
+                                                                className="h-[12px] rounded-r-md transition-all duration-500"
+                                                                style={{
+                                                                    width: `${(cat.Cancelamentos / maxVal) * 100}%`,
+                                                                    minWidth: '8px',
+                                                                    backgroundColor: '#ef4444'
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs font-bold text-gray-700 w-[24px] text-right">{cat.Cancelamentos}</span>
+                                                    </div>
+                                                )}
+                                                {/* Transferência bar — only if > 0 */}
+                                                {cat.Transferências > 0 && (
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xs font-semibold text-orange-500 w-[155px] shrink-0">Transferência</span>
+                                                        <div className="flex-1 flex items-center gap-2" style={{ maxWidth: '60%' }}>
+                                                            <div
+                                                                className="h-[12px] rounded-r-md transition-all duration-500"
+                                                                style={{
+                                                                    width: `${(cat.Transferências / maxVal) * 100}%`,
+                                                                    minWidth: '8px',
+                                                                    backgroundColor: '#f97316'
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs font-bold text-gray-700 w-[24px] text-right">{cat.Transferências}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
+                            <div className="mt-6 shrink-0 flex justify-center w-full">
+                                <span className="text-xs font-semibold text-gray-400">
+                                    Baseado em {categoryData.reduce((acc: any, curr: any) => acc + curr.total, 0)} casos registrados
+                                </span>
+                            </div>
+                        </>
+                    )}
                 </motion.div>
             </div>
         </div >

@@ -1,0 +1,14 @@
+NOVO CAMPO NO BANCO E NO FORMULÁRIO
+Adicione o campo 'Categoria do Motivo' como select dropdown obrigatório no formulário de Novo Registro de Caso, posicionado entre a seção 'Tipo do Caso' e a seção 'Atendimento pela Coordenação'. O campo deve ter asterisco vermelho indicando obrigatoriedade.
+As opções do select são:
+Financeiro / Mensalidade, Pedagógico / Qualidade de Ensino, Conflito com Professor, Conflito com Colegas / Bullying, Mudança de Cidade ou Região, Mudança para Escola Concorrente, Insatisfação com Gestão Escolar, Motivo Pessoal / Familiar, Não Informado.
+Adicione a coluna categoria_motivo na tabela students do Supabase com constraint check validando os valores permitidos. A coluna já estará protegida pelas RLS policies existentes na tabela students, não sendo necessário criar novas policies.
+Na tela de detalhes do aluno, exiba a categoria no bloco de informações com um badge colorido — cada categoria deve ter uma cor diferente para fácil identificação visual. Na tela de lista de alunos, adicione a categoria como coluna na tabela e como opção de filtro no topo da página.
+
+SEÇÃO 'ANÁLISE DE MOTIVOS' NO DASHBOARD
+
+"Na seção 'Análise de Motivos' do Dashboard, adicione um gráfico de barras horizontais usando Recharts mostrando a distribuição percentual das categorias de motivo que levaram às desistências no período selecionado.
+O gráfico deve ter o título 'Principais Motivos de Desistência' e exibir todas as categorias ordenadas da mais frequente para a menos frequente, de cima para baixo. Cada barra deve mostrar o nome da categoria à esquerda, a barra colorida com a cor correspondente ao badge da categoria no centro, e o percentual em destaque à direita da barra.
+O gráfico deve considerar apenas registros com approval_status igual a 'approved' na tabela student_reasons, garantindo que apenas motivos já validados pelo diretor entrem na análise. Os dados devem ser agrupados por categoria_motivo da tabela students.
+Abaixo do gráfico exibir um número em destaque mostrando o total de casos analisados no período, por exemplo 'Baseado em 31 casos registrados'.
+Se o usuário tiver acesso a 2 unidades, o gráfico deve refletir apenas a unidade atualmente selecionada. Exibir skeleton loader enquanto os dados carregam e mensagem elegante caso não haja dados no período. Todos os textos em PT-BR. Após implementar rodar npm run build localmente antes de fazer push para o GitHub."

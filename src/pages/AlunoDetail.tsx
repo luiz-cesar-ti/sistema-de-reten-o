@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { AITextEnhancer } from '../components/AITextEnhancer';
+import { categoryColors } from './Alunos';
 
 export function AlunoDetail() {
     const { id } = useParams<{ id: string }>();
@@ -365,45 +366,64 @@ export function AlunoDetail() {
 
                 {/* Bloco de Informações do Aluno */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-4">
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 mb-1">Nome completo</p>
-                            <p className="font-semibold text-gray-900">{student.full_name}</p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 mb-1">RA</p>
-                                <p className="font-medium text-gray-900">{student.ra}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 mb-1">Unidade</p>
-                                <p className="font-medium text-gray-900">{student.units?.name}</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 mb-1">Ensino</p>
-                                <p className="font-medium text-gray-900">{levelsMap[student.education_level]}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-500 mb-1">Série</p>
-                                <p className="font-medium text-gray-900">{student.serie}</p>
-                            </div>
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        {/* Nome — destaque no topo */}
+                        <div className="px-6 py-4">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Nome completo</p>
+                            <p className="text-lg font-bold text-gray-900">{student.full_name}</p>
                         </div>
 
                         <div>
-                            <p className="text-sm font-medium text-gray-500 mb-1">Status</p>
-                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${student.status === 'cancelamento' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
-                                }`}>
-                                {student.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}
-                            </span>
-                        </div>
+                            {/* RA e Unidade */}
+                            <div className="grid grid-cols-2">
+                                <div className="px-6 py-3">
+                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">RA</p>
+                                    <p className="text-sm font-semibold text-gray-900">{student.ra}</p>
+                                </div>
+                                <div className="px-6 py-3">
+                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Unidade</p>
+                                    <p className="text-sm font-semibold text-gray-900">{student.units?.name}</p>
+                                </div>
+                            </div>
 
-                        <div>
-                            <p className="text-sm font-medium text-gray-500 mb-1">Data de Registro</p>
-                            <p className="font-medium text-gray-900">{format(parseISO(student.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+                            {/* Ensino e Série */}
+                            <div className="grid grid-cols-2">
+                                <div className="px-6 py-3">
+                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Ensino</p>
+                                    <p className="text-sm font-semibold text-gray-900">{levelsMap[student.education_level]}</p>
+                                </div>
+                                <div className="px-6 py-3">
+                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Série</p>
+                                    <p className="text-sm font-semibold text-gray-900">{student.serie}</p>
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="px-6 py-3">
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Status</p>
+                                <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${student.status === 'cancelamento' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
+                                    }`}>
+                                    {student.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}
+                                </span>
+                            </div>
+
+                            {/* Categoria de Motivo */}
+                            <div className="px-6 py-3">
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Categoria de Motivo</p>
+                                {student.categoria_motivo ? (
+                                    <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${categoryColors[student.categoria_motivo] || categoryColors['Não Informado']}`}>
+                                        {student.categoria_motivo}
+                                    </span>
+                                ) : (
+                                    <span className="text-gray-400 text-xs italic">Não categorizado</span>
+                                )}
+                            </div>
+
+                            {/* Data de Registro */}
+                            <div className="px-6 py-3">
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Data de Registro</p>
+                                <p className="text-sm font-semibold text-gray-900">{format(parseISO(student.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
+                            </div>
                         </div>
                     </div>
 

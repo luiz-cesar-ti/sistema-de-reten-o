@@ -14,6 +14,18 @@ const levelsMap: Record<string, string> = {
     'ensino_medio': 'Ensino Médio'
 };
 
+export const categoryColors: Record<string, string> = {
+    'Financeiro / Mensalidade': 'bg-red-50 text-red-700 ring-red-600/20',
+    'Pedagógico / Qualidade de Ensino': 'bg-blue-50 text-blue-700 ring-blue-600/20',
+    'Conflito com Professor': 'bg-orange-50 text-orange-700 ring-orange-600/20',
+    'Conflito com Colegas / Bullying': 'bg-purple-50 text-purple-700 ring-purple-600/20',
+    'Mudança de Cidade ou Região': 'bg-teal-50 text-teal-700 ring-teal-600/20',
+    'Mudança para Escola Concorrente': 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
+    'Insatisfação com Gestão Escolar': 'bg-pink-50 text-pink-700 ring-pink-600/20',
+    'Motivo Pessoal / Familiar': 'bg-green-50 text-green-700 ring-green-600/20',
+    'Não Informado': 'bg-gray-50 text-gray-700 ring-gray-600/20'
+};
+
 export function Alunos() {
     const { activeUnitId, hasPrivilege } = useAuth();
 
@@ -23,6 +35,7 @@ export function Alunos() {
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState('');
     const [filterLevel, setFilterLevel] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
 
     useEffect(() => {
         if (!activeUnitId) return;
@@ -70,7 +83,8 @@ export function Alunos() {
             s.ra.toLowerCase().includes(search.toLowerCase());
         const matchType = filterType ? s.status === filterType : true;
         const matchLevel = filterLevel ? s.education_level === filterLevel : true;
-        return matchSearch && matchType && matchLevel;
+        const matchCategory = filterCategory ? s.categoria_motivo === filterCategory : true;
+        return matchSearch && matchType && matchLevel && matchCategory;
     });
 
     return (
@@ -127,6 +141,17 @@ export function Alunos() {
                             <option key={key} value={key}>{label}</option>
                         ))}
                     </select>
+
+                    <select
+                        className="block w-full md:w-48 rounded-md border-0 py-2 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-objetivo-blue sm:text-sm sm:leading-6"
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                    >
+                        <option value="">Todas as Categorias</option>
+                        {Object.keys(categoryColors).map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
@@ -146,6 +171,7 @@ export function Alunos() {
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aluno / RA</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ensino / Série</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
                                     <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Coord.</th>
                                     <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Direção</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
@@ -174,6 +200,15 @@ export function Alunos() {
                                                 }`}>
                                                 {student.status === 'cancelamento' ? 'Cancelamento de Matrícula' : 'Transferência'}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {student.categoria_motivo ? (
+                                                <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${categoryColors[student.categoria_motivo] || categoryColors['Não Informado']}`}>
+                                                    {student.categoria_motivo}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs italic">Não categorizado</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
                                             {student.spoke_with_coordination ? <Check className="w-5 h-5 text-green-500 mx-auto" /> : <X className="w-5 h-5 text-red-400 mx-auto" />}

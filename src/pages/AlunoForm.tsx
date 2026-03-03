@@ -21,6 +21,19 @@ const formSchema = z.object({
     status: z.enum(['cancelamento', 'transferencia'], {
         message: 'Selecione o tipo do caso',
     }),
+    categoriaMotivo: z.enum([
+        'Financeiro / Mensalidade',
+        'Pedagógico / Qualidade de Ensino',
+        'Conflito com Professor',
+        'Conflito com Colegas / Bullying',
+        'Mudança de Cidade ou Região',
+        'Mudança para Escola Concorrente',
+        'Insatisfação com Gestão Escolar',
+        'Motivo Pessoal / Familiar',
+        'Não Informado'
+    ], {
+        message: 'Selecione a categoria do motivo',
+    }),
     spokeWithCoordination: z.enum(['yes', 'no']).optional(),
     coordinationReversed: z.enum(['yes', 'no']).optional(),
     coordinationNoReversalReason: z.string().optional(),
@@ -43,7 +56,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export function AlunoForm() {
-    const { user, profile, activeUnitId, logAction } = useAuth();
+    const { user, profile, activeUnitId, logAction, hasPrivilege } = useAuth();
     const navigate = useNavigate();
     const [submitting, setSubmitting] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -115,6 +128,7 @@ export function AlunoForm() {
                 education_level: data.educationLevel,
                 serie: cleanSerie,
                 status: data.status,
+                categoria_motivo: data.categoriaMotivo,
                 spoke_with_coordination: spokeCoord,
                 coordination_reversed: coordReversed,
                 coordination_no_reversal_reason: finalNoReversalReason,
@@ -124,6 +138,26 @@ export function AlunoForm() {
             }).select().single();
 
             if (studentError) throw studentError;
+
+            // 2.5 Insert the initial reason into student_reasons to trigger the approval flow
+            const needsApproval = !(hasPrivilege('admin') || hasPrivilege('diretor'));
+            const approvalStatus = needsApproval ? 'pending' : 'approved';
+
+            const reasonPayload: any = {
+                student_id: studentData.id,
+                reason_text: cleanReasonText,
+                created_by: profile?.id,
+                created_by_name: profile?.full_name,
+                approval_status: approvalStatus
+            };
+
+            if (approvalStatus === 'approved') {
+                reasonPayload.approved_by = profile?.id;
+                reasonPayload.approved_at = new Date().toISOString();
+            }
+
+            const { error: reasonError } = await supabase.from('student_reasons').insert(reasonPayload);
+            if (reasonError) console.error('Erro ao criar student_reasons (primeiro motivo):', reasonError);
 
             // 3. Audit Log
             await logAction('student_created', 'students', studentData.id, {
@@ -216,6 +250,28 @@ export function AlunoForm() {
                         </label>
                     </div>
                     {errors.status && <p className="mt-2 text-xs text-red-500">{errors.status.message}</p>}
+                </section>
+
+                {/* SEÇÃO 2B — Categoria do Motivo */}
+                <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 className="text-lg font-semibold text-objetivo-blue mb-4 flex items-center gap-2 border-b pb-2">
+                        Categoria do Motivo <span className="text-red-500">*</span>
+                    </h2>
+                    <div>
+                        <select {...register('categoriaMotivo')} className={`mt-1 block w-full rounded-md border-0 py-2 px-3 text-gray-900 ring-1 ring-inset ${errors.categoriaMotivo ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-objetivo-blue'} sm:text-sm`}>
+                            <option value="">Selecione a categoria mais adequada</option>
+                            <option value="Financeiro / Mensalidade">Financeiro / Mensalidade</option>
+                            <option value="Pedagógico / Qualidade de Ensino">Pedagógico / Qualidade de Ensino</option>
+                            <option value="Conflito com Professor">Conflito com Professor</option>
+                            <option value="Conflito com Colegas / Bullying">Conflito com Colegas / Bullying</option>
+                            <option value="Mudança de Cidade ou Região">Mudança de Cidade ou Região</option>
+                            <option value="Mudança para Escola Concorrente">Mudança para Escola Concorrente</option>
+                            <option value="Insatisfação com Gestão Escolar">Insatisfação com Gestão Escolar</option>
+                            <option value="Motivo Pessoal / Familiar">Motivo Pessoal / Familiar</option>
+                            <option value="Não Informado">Não Informado</option>
+                        </select>
+                        {errors.categoriaMotivo && <p className="mt-1 text-xs text-red-500">{errors.categoriaMotivo.message}</p>}
+                    </div>
                 </section>
 
                 {/* SEÇÃO 3 — Atendimento pela Coordenação */}
