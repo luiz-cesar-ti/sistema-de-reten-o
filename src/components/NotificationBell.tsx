@@ -210,7 +210,14 @@ export function NotificationBell() {
     return (
         <div className="relative" ref={dropdownRef}>
             <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                onClick={() => {
+                    const willOpen = !isDropdownOpen;
+                    setIsDropdownOpen(willOpen);
+                    if (willOpen && unreadCount > 0) {
+                        const unread = visibleNotifications.filter(n => !readIds.includes(n.id)).map(n => n.id);
+                        markAsRead(unread);
+                    }
+                }}
                 className={`relative p-3 bg-objetivo-blue text-white hover:bg-blue-900 rounded-full transition-colors focus:outline-none focus:ring-4 focus:ring-blue-100 shadow-md flex items-center justify-center shrink-0 group ${isDropdownOpen ? 'bg-blue-900 ring-4 ring-blue-100' : ''}`}
                 title="Notificações"
             >
