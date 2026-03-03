@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { subMonths, format, parseISO } from 'date-fns';
@@ -19,189 +20,159 @@ const levelsMap: Record<string, string> = {
 };
 const COLORS = ['#1a237e', '#FFA000', '#f44336', '#4caf50'];
 
+// --- SWR FETCHER ---
+const fetchDashboardData = async ([_key, activeUnitId, dateRange, needsPendentes]: [string, string, { start: string, end: string }, boolean]) => {
+    if (!activeUnitId) throw new Error("No active unit");
+
+    const currentMonthStart = new Date();
+    currentMonthStart.setDate(1);
+    currentMonthStart.setHours(0, 0, 0, 0);
+
+    const startStr = dateRange.start + 'T00:00:00';
+    const endStr = dateRange.end + 'T23:59:59';
+    const startD = new Date(startStr);
+    const endD = new Date(endStr);
+
+    const [
+        studentsResult,
+        pendentesResult,
+        cancelsResult,
+        transfersResult
+    ] = await Promise.all([
+        supabase
+            .from('students')
+            .select('id, status, education_level, created_at, full_name, serie, spoke_with_coordination, coordination_reversed, spoke_with_direction, categoria_motivo')
+            .eq('unit_id', activeUnitId)
+            .eq('is_deleted', false)
+            .gte('created_at', startD.toISOString())
+            .lte('created_at', endD.toISOString())
+            .order('created_at', { ascending: false }),
+
+        needsPendentes
+            ? supabase
+                .from('student_reasons')
+                .select('id, students!inner(unit_id, is_deleted)', { count: 'exact', head: true })
+                .eq('approval_status', 'pending')
+                .eq('students.unit_id', activeUnitId)
+                .eq('students.is_deleted', false)
+            : Promise.resolve({ count: 0 }),
+
+        supabase.from('students').select('id', { count: 'exact', head: true })
+            .eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'cancelamento'),
+
+        supabase.from('students').select('id', { count: 'exact', head: true })
+            .eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'transferencia')
+    ]);
+
+    const students = studentsResult.data || [];
+    const pendentesCount = pendentesResult.count || 0;
+    const totalCancels = cancelsResult.count || 0;
+    const totalTransfers = transfersResult.count || 0;
+
+    const monthMap = new Map();
+    let loopDate = new Date(endD);
+    loopDate.setDate(1);
+    loopDate.setHours(0, 0, 0, 0);
+    const startMonth = new Date(startD);
+    startMonth.setDate(1);
+    startMonth.setHours(0, 0, 0, 0);
+
+    while (loopDate >= startMonth) {
+        const ym = format(loopDate, 'yyyy-MM');
+        monthMap.set(ym, { name: format(loopDate, 'MMM/yy', { locale: ptBR }), yearMonth: ym, Cancelamentos: 0, Transferências: 0 });
+        loopDate.setMonth(loopDate.getMonth() - 1);
+    }
+
+    const lvlMap: Record<string, number> = {};
+    const catMap: Record<string, { cancelamentos: number, transferencias: number }> = {};
+    let spokeCoord = 0, reverted = 0, spokeDir = 0, mesAtualCount = 0;
+
+    students.forEach(s => {
+        const dText = format(parseISO(s.created_at), 'yyyy-MM');
+        if (monthMap.has(dText)) {
+            const g = monthMap.get(dText);
+            if (s.status === 'cancelamento') g.Cancelamentos++;
+            if (s.status === 'transferencia') g.Transferências++;
+        }
+
+        const nm = levelsMap[s.education_level] || s.education_level;
+        lvlMap[nm] = (lvlMap[nm] || 0) + 1;
+
+        const cat = s.categoria_motivo || 'Não Informado';
+        if (!catMap[cat]) catMap[cat] = { cancelamentos: 0, transferencias: 0 };
+        if (s.status === 'cancelamento') catMap[cat].cancelamentos++;
+        else if (s.status === 'transferencia') catMap[cat].transferencias++;
+
+        if (s.spoke_with_coordination) spokeCoord++;
+        if (s.coordination_reversed) reverted++;
+        if (s.spoke_with_direction) spokeDir++;
+
+        if (new Date(s.created_at) >= currentMonthStart) mesAtualCount++;
+    });
+
+    const totalS = students.length || 1;
+    const totalCoord = spokeCoord || 1;
+
+    const processedCategories = Object.entries(catMap)
+        .map(([name, counts]) => {
+            const total = counts.cancelamentos + counts.transferencias;
+            return {
+                name,
+                Cancelamentos: counts.cancelamentos,
+                Transferências: counts.transferencias,
+                total,
+                percent: students.length > 0 ? Math.round((total / students.length) * 100) : 0
+            };
+        })
+        .filter(cat => cat.total > 0)
+        .sort((a, b) => b.total - a.total);
+
+    return {
+        metrics: {
+            cancelamentos: totalCancels,
+            transferencias: totalTransfers,
+            pendentes: pendentesCount,
+            mesAtual: mesAtualCount,
+        },
+        chartData: Array.from(monthMap.values()),
+        levelData: Object.entries(lvlMap).map(([name, value]) => ({ name, value })),
+        categoryData: processedCategories,
+        indicators: {
+            coord: Math.round((spokeCoord / totalS) * 100),
+            revert: Math.round((reverted / totalCoord) * 100),
+            dir: Math.round((spokeDir / totalS) * 100),
+        },
+        recent: students.slice(0, 5)
+    };
+};
+// --- END FETCHER ---
+
 export function Dashboard() {
     const { activeUnitId, hasPrivilege, units } = useAuth();
     const activeUnit = units.find(u => u.id === activeUnitId);
-
-    const [loading, setLoading] = useState(true);
-    const [metrics, setMetrics] = useState({
-        cancelamentos: 0,
-        transferencias: 0,
-        pendentes: 0,
-        mesAtual: 0,
-    });
-
-    const [chartData, setChartData] = useState<any[]>([]);
-    const [levelData, setLevelData] = useState<any[]>([]);
-    const [indicators, setIndicators] = useState({ coord: 0, revert: 0, dir: 0 });
-    const [recent, setRecent] = useState<any[]>([]);
-    const [categoryData, setCategoryData] = useState<any[]>([]);
 
     const [dateRange, setDateRange] = useState({
         start: format(subMonths(new Date(), 5), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd')
     });
 
-    useEffect(() => {
-        if (!activeUnitId) return;
+    const needsPendentes = hasPrivilege('admin') || hasPrivilege('diretor') || hasPrivilege('coordenacao');
 
-        fetchDashboardData();
-    }, [activeUnitId, dateRange]);
-
-    const fetchDashboardData = async () => {
-        setLoading(true);
-        try {
-            const currentMonthStart = new Date();
-            currentMonthStart.setDate(1);
-            currentMonthStart.setHours(0, 0, 0, 0);
-
-            // Adjust dates avoiding JS UTC parsing bug on YYYY-MM-DD strings
-            const startStr = dateRange.start + 'T00:00:00';
-            const endStr = dateRange.end + 'T23:59:59';
-            const startD = new Date(startStr);
-            const endD = new Date(endStr);
-
-            // Fire queries in parallel — only 4 needed (removed month count query)
-            const needsPendentes = hasPrivilege('admin') || hasPrivilege('diretor') || hasPrivilege('coordenacao');
-
-            const [
-                studentsResult,
-                pendentesResult,
-                cancelsResult,
-                transfersResult
-            ] = await Promise.all([
-                // 1. Students for date range
-                supabase
-                    .from('students')
-                    .select('id, status, education_level, created_at, full_name, serie, spoke_with_coordination, coordination_reversed, spoke_with_direction, categoria_motivo')
-                    .eq('unit_id', activeUnitId)
-                    .eq('is_deleted', false)
-                    .gte('created_at', startD.toISOString())
-                    .lte('created_at', endD.toISOString())
-                    .order('created_at', { ascending: false }),
-
-                // 2. Pending reasons count (only if has privilege)
-                needsPendentes
-                    ? supabase
-                        .from('student_reasons')
-                        .select('id, students!inner(unit_id, is_deleted)', { count: 'exact', head: true })
-                        .eq('approval_status', 'pending')
-                        .eq('students.unit_id', activeUnitId)
-                        .eq('students.is_deleted', false)
-                    : Promise.resolve({ count: 0 }),
-
-                // 3. Total cancellations (all time)
-                supabase.from('students').select('id', { count: 'exact', head: true })
-                    .eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'cancelamento'),
-
-                // 4. Total transfers (all time)
-                supabase.from('students').select('id', { count: 'exact', head: true })
-                    .eq('unit_id', activeUnitId).eq('is_deleted', false).eq('status', 'transferencia')
-            ]);
-
-            const students = studentsResult.data;
-            const pendentesCount = pendentesResult.count || 0;
-            const totalCancels = cancelsResult.count;
-            const totalTransfers = transfersResult.count;
-
-            if (!students) {
-                setLoading(false);
-                return;
-            }
-
-            // Pre-build month map for Chart 1
-            const monthMap = new Map();
-            let loopDate = new Date(endD);
-            loopDate.setDate(1);
-            loopDate.setHours(0, 0, 0, 0);
-            const startMonth = new Date(startD);
-            startMonth.setDate(1);
-            startMonth.setHours(0, 0, 0, 0);
-            while (loopDate >= startMonth) {
-                const ym = format(loopDate, 'yyyy-MM');
-                monthMap.set(ym, { name: format(loopDate, 'MMM/yy', { locale: ptBR }), yearMonth: ym, Cancelamentos: 0, Transferências: 0 });
-                loopDate.setMonth(loopDate.getMonth() - 1);
-            }
-
-            // === SINGLE PASS over students: compute all charts + indicators ===
-            const lvlMap: Record<string, number> = {};
-            const catMap: Record<string, { cancelamentos: number, transferencias: number }> = {};
-            let spokeCoord = 0, reverted = 0, spokeDir = 0, mesAtualCount = 0;
-
-            students.forEach(s => {
-                // Chart 1: Monthly grouping
-                const dText = format(parseISO(s.created_at), 'yyyy-MM');
-                if (monthMap.has(dText)) {
-                    const g = monthMap.get(dText);
-                    if (s.status === 'cancelamento') g.Cancelamentos++;
-                    if (s.status === 'transferencia') g.Transferências++;
-                }
-
-                // Chart 2: Level distribution
-                const nm = levelsMap[s.education_level] || s.education_level;
-                lvlMap[nm] = (lvlMap[nm] || 0) + 1;
-
-                // Chart 3: Category breakdown
-                const cat = s.categoria_motivo || 'Não Informado';
-                if (!catMap[cat]) catMap[cat] = { cancelamentos: 0, transferencias: 0 };
-                if (s.status === 'cancelamento') catMap[cat].cancelamentos++;
-                else if (s.status === 'transferencia') catMap[cat].transferencias++;
-
-                // Indicators
-                if (s.spoke_with_coordination) spokeCoord++;
-                if (s.coordination_reversed) reverted++;
-                if (s.spoke_with_direction) spokeDir++;
-
-                // Month count (replaces query #5)
-                if (new Date(s.created_at) >= currentMonthStart) mesAtualCount++;
-            });
-
-            // Set all state from single-pass results
-            const totalS = students.length || 1;
-            const totalCoord = spokeCoord || 1;
-
-            setMetrics({
-                cancelamentos: totalCancels || 0,
-                transferencias: totalTransfers || 0,
-                pendentes: pendentesCount,
-                mesAtual: mesAtualCount,
-            });
-
-            setChartData(Array.from(monthMap.values()));
-            setLevelData(Object.entries(lvlMap).map(([name, value]) => ({ name, value })));
-
-            const processedCategories = Object.entries(catMap)
-                .map(([name, counts]) => {
-                    const total = counts.cancelamentos + counts.transferencias;
-                    return {
-                        name,
-                        Cancelamentos: counts.cancelamentos,
-                        Transferências: counts.transferencias,
-                        total,
-                        percent: students.length > 0 ? Math.round((total / students.length) * 100) : 0
-                    };
-                })
-                .filter(cat => cat.total > 0)
-                .sort((a, b) => b.total - a.total);
-
-            setCategoryData(processedCategories);
-            setIndicators({
-                coord: Math.round((spokeCoord / totalS) * 100),
-                revert: Math.round((reverted / totalCoord) * 100),
-                dir: Math.round((spokeDir / totalS) * 100),
-            });
-            setRecent(students.slice(0, 5));
-
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
+    const { data, isLoading } = useSWR(
+        activeUnitId ? ['dashboard', activeUnitId, dateRange, needsPendentes] : null,
+        fetchDashboardData,
+        {
+            revalidateOnFocus: false, // Evita refetches excessivos ao trocar de aba do navegador
+            dedupingInterval: 60000 // Usa cache em vez de refetch por 1 minuto
         }
-    };
+    );
 
-    if (loading) {
+    if (isLoading && !data) {
         return <div className="p-8"><div className="animate-pulse flex flex-col gap-4"><div className="h-32 bg-gray-200 rounded-xl"></div><div className="h-64 bg-gray-200 rounded-xl"></div></div></div>;
     }
+
+    // Default values se 'data' ainda não estiver pronto
+    const { metrics = { cancelamentos: 0, transferencias: 0, pendentes: 0, mesAtual: 0 }, chartData = [], levelData = [], categoryData = [], indicators = { coord: 0, revert: 0, dir: 0 }, recent = [] } = data || {};
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">

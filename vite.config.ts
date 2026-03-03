@@ -120,4 +120,16 @@ Se houver ambiguidade no texto original, mantenha a ambiguidade sem tentar escla
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), apiPlugin()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+          'ui-vendor': ['lucide-react', 'framer-motion', 'react-hot-toast'],
+          'chart-vendor': ['recharts']
+        }
+      }
+    }
+  }
 })

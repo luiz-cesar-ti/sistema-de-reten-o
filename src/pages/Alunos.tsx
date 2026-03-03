@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { format, parseISO } from 'date-fns';
@@ -26,30 +27,46 @@ export const categoryColors: Record<string, string> = {
     'Não Informado': 'bg-gray-50 text-gray-700 ring-gray-600/20'
 };
 
+const fetchStudents = async ([_key, activeUnitId]: [string, string]) => {
+    if (!activeUnitId) throw new Error("No active unit");
+    const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('unit_id', activeUnitId)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+};
+
 export function Alunos() {
     const { activeUnitId, hasPrivilege } = useAuth();
-
-    const [loading, setLoading] = useState(true);
-    const [students, setStudents] = useState<any[]>([]);
 
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState('');
     const [filterLevel, setFilterLevel] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
 
+    const { data: students = [], isLoading: loading, mutate } = useSWR(
+        activeUnitId ? ['alunos', activeUnitId] : null,
+        fetchStudents,
+        {
+            revalidateOnFocus: false,
+            dedupingInterval: 60000
+        }
+    );
+
     useEffect(() => {
         if (!activeUnitId) return;
 
-        // Initial fetch
-        fetchStudents();
-
-        // Realtime Subscription
+        // Realtime Subscription - Updates SWR cache when database changes
         const channel = supabase.channel('public:students_page')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'students' },
                 () => {
-                    fetchStudents();
+                    mutate();
                 }
             )
             .subscribe();
@@ -57,26 +74,7 @@ export function Alunos() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [activeUnitId]);
-
-    const fetchStudents = async () => {
-        setLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from('students')
-                .select('*')
-                .eq('unit_id', activeUnitId)
-                .or('is_deleted.is.null,is_deleted.eq.false')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setStudents(data || []);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [activeUnitId, mutate]);
 
     const filteredStudents = students.filter(s => {
         const matchSearch = s.full_name.toLowerCase().includes(search.toLowerCase()) ||
