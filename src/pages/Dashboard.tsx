@@ -293,8 +293,8 @@ export function Dashboard() {
                                     dataKey="value"
                                     isAnimationActive={true}
                                     label={(props: any) => {
-                                        if (!props || !props.value) return null;
-                                        const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } = props;
+                                        if (!props || typeof props.percent !== 'number') return null;
+                                        const { cx, cy, midAngle, outerRadius, percent, value } = props;
                                         const RADIAN = Math.PI / 180;
                                         // Puxa o rótulo com segurança para a borda externa permitindo a linha de conexão se formar
                                         const rInfo = (outerRadius || 75) + 25;
@@ -514,7 +514,9 @@ export function Dashboard() {
                                                         isAnimationActive={true}
                                                         animationDuration={600}
                                                         animationEasing="ease-out"
-                                                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                                                        label={(props: any) => {
+                                                            const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
+                                                            if (typeof percent !== 'number') return null;
                                                             const RADIAN = Math.PI / 180;
                                                             const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                                                             const x = cx + radius * Math.cos(-midAngle * RADIAN);
