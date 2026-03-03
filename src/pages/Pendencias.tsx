@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
-import { Check, X, AlertCircle, Eye, UserMinus } from 'lucide-react';
+import { Check, X, AlertCircle, Eye, UserMinus, UserPlus, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
@@ -211,10 +211,21 @@ export function Pendencias() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ delay: idx * 0.05 }}
-                                className="bg-white border-l-4 border-yellow-400 p-6 rounded-r-xl shadow-sm hover:shadow transition-shadow grid grid-cols-1 md:grid-cols-4 gap-6"
+                                className={`bg-white border-l-4 p-6 rounded-r-xl shadow-sm hover:shadow transition-shadow grid grid-cols-1 md:grid-cols-4 gap-6 ${item.type === 'new_student' ? 'border-blue-500 bg-blue-50/30' : 'border-yellow-400'}`}
                             >
                                 <div className="md:col-span-1 space-y-1">
-                                    <p className="text-sm font-medium text-gray-500">Aluno</p>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        {item.type === 'new_student' ? (
+                                            <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold bg-blue-100 text-blue-800">
+                                                <UserPlus className="w-3 h-3" /> NOVO REGISTRO
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold bg-yellow-100 text-yellow-800">
+                                                <FileText className="w-3 h-3" /> NOVO MOTIVO
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-500 mt-2">Aluno</p>
                                     <Link to={`/alunos/${item.students.id}`} className="font-bold text-objetivo-blue hover:underline">
                                         {item.students.full_name}
                                     </Link>
@@ -226,13 +237,36 @@ export function Pendencias() {
                                 </div>
 
                                 <div className="md:col-span-2 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm font-medium text-gray-700">Motivo Adicionado por: <span className="font-bold">{item.created_by_name}</span></p>
-                                        <p className="text-xs text-gray-400">{format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
-                                    </div>
-                                    <div className="bg-gray-50 p-3 rounded border border-gray-100 text-sm text-gray-700">
-                                        {renderReasonContent(item.reason_text)}
-                                    </div>
+                                    {item.type === 'new_student' ? (
+                                        <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm">
+                                            <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+                                                <p className="text-sm font-semibold text-blue-900">Dados do Novo Registro</p>
+                                                <p className="text-xs text-gray-400">{format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-y-2 text-sm">
+                                                <div className="text-gray-500">Nível:</div>
+                                                <div className="font-medium">{item.students.education_level === 'educacao_infantil' ? 'Ed. Infantil' : item.students.education_level === 'ensino_fundamental_1' ? 'Fund. I' : item.students.education_level === 'ensino_fundamental_2' ? 'Fund. II' : 'Ensino Médio'}</div>
+
+                                                <div className="text-gray-500">Tipo:</div>
+                                                <div className="font-medium">{item.students.status === 'cancelamento' ? 'Cancelamento' : 'Transferência'}</div>
+
+                                                <div className="text-gray-500 col-span-2 mt-2">Relato do Atendimento:</div>
+                                                <div className="col-span-2 bg-gray-50 p-3 rounded text-gray-700 italic border border-gray-200 mt-1 whitespace-pre-wrap">
+                                                    {item.reason_text}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-medium text-gray-700">Motivo Adicionado por: <span className="font-bold">{item.created_by_name}</span></p>
+                                                <p className="text-xs text-gray-400">{format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                                            </div>
+                                            <div className="bg-gray-50 p-3 rounded border border-gray-100 text-sm text-gray-700">
+                                                {renderReasonContent(item.reason_text)}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className="md:col-span-1 flex flex-col items-end justify-center gap-3">
