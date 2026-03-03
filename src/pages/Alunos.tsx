@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, Filter, Check, X, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -43,6 +43,7 @@ const fetchStudents = async ([_key, activeUnitId]: [string, string]) => {
 
 export function Alunos() {
     const { activeUnitId, hasPrivilege } = useAuth();
+    const navigate = useNavigate();
 
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState('');
@@ -183,7 +184,8 @@ export function Alunos() {
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: idx * 0.05 }}
-                                        className="hover:bg-gray-50"
+                                        className="hover:bg-gray-50 cursor-pointer"
+                                        onClick={() => navigate(`/alunos/${student.id}`)}
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">{student.full_name}</div>
