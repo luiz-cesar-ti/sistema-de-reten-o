@@ -119,6 +119,8 @@ export function AlunoForm() {
             const finalNoReversalReason = (data.spokeWithCoordination === 'yes' && coordReversed === false && cleanReversalReason) ? cleanReversalReason : null;
 
             // 2. Insert Student
+            const initialApprovalStatus = profile.role === 'atendimento' ? 'pending' : 'approved';
+
             const { data: studentData, error: studentError } = await supabase.from('students').insert({
                 full_name: cleanFullName,
                 unit_id: activeUnitId,
@@ -131,7 +133,8 @@ export function AlunoForm() {
                 coordination_no_reversal_reason: finalNoReversalReason,
                 spoke_with_direction: data.spokeWithDirection === 'yes',
                 attendance_report: cleanReasonText,
-                created_by: user.id
+                created_by: user.id,
+                approval_status: initialApprovalStatus
             }).select().single();
 
             if (studentError) throw studentError;
@@ -139,11 +142,17 @@ export function AlunoForm() {
             // 3. Audit Log
             await logAction('student_created', 'students', studentData.id, {
                 name: cleanFullName,
-                status: data.status
+                status: data.status,
+                approval_status: initialApprovalStatus
             });
 
-            toast.success('Registro criado com sucesso!');
-            navigate(`/alunos/${studentData.id}`);
+            if (initialApprovalStatus === 'pending') {
+                toast.success('Registro criado e enviado para aprovação da direção!');
+                navigate('/alunos');
+            } else {
+                toast.success('Registro criado com sucesso!');
+                navigate(`/alunos/${studentData.id}`);
+            }
 
         } catch (err: any) {
             console.error(err);

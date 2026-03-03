@@ -15,7 +15,7 @@ export function Pendencias() {
 
     const [loading, setLoading] = useState(true);
     const [pendencias, setPendencias] = useState<any[]>([]);
-    const [confirmActionData, setConfirmActionData] = useState<{ id: string, action: 'approved' | 'rejected' } | null>(null);
+    const [confirmActionData, setConfirmActionData] = useState<{ id: string, action: 'approved' | 'rejected', type: 'reason' | 'new_student' } | null>(null);
 
     useEffect(() => {
         if (!activeUnitId) return;
@@ -38,7 +38,36 @@ export function Pendencias() {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            setPendencias(data || []);
+
+            const { data: studentsData, error: studentsError } = await supabase
+                .from('students')
+                .select(`id, full_name, unit_id, serie, education_level, status, is_deleted, attendance_report, created_at`)
+                .eq('approval_status', 'pending')
+                .eq('unit_id', activeUnitId)
+                .eq('is_deleted', false);
+
+            if (studentsError) throw studentsError;
+
+            const reasonsList = (data || []).map(r => ({ ...r, type: 'reason' }));
+            const studentsList = (studentsData || []).map(s => ({
+                id: s.id,
+                type: 'new_student',
+                reason_text: s.attendance_report || 'Novo Registro',
+                created_at: s.created_at,
+                created_by_name: 'Usuário (Novo Registro)',
+                students: {
+                    id: s.id,
+                    full_name: s.full_name,
+                    unit_id: s.unit_id,
+                    serie: s.serie,
+                    education_level: s.education_level,
+                    status: s.status,
+                    is_deleted: s.is_deleted
+                }
+            }));
+
+            const combined = [...reasonsList, ...studentsList].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setPendencias(combined);
         } catch (err) {
             console.error(err);
             toast.error('Erro ao buscar pendências');
@@ -47,49 +76,62 @@ export function Pendencias() {
         }
     };
 
-    const handleActionClick = (id: string, action: 'approved' | 'rejected') => {
-        setConfirmActionData({ id, action });
+    const handleActionClick = (id: string, action: 'approved' | 'rejected', type: 'reason' | 'new_student') => {
+        setConfirmActionData({ id, action, type });
     };
 
     const confirmAction = async () => {
         if (!profile || !confirmActionData) return;
 
-        const { id, action } = confirmActionData;
+        const { id, action, type } = confirmActionData;
 
         try {
             const pendingItem = pendencias.find(p => p.id === id);
 
-            if (action === 'approved' && pendingItem) {
-                try {
-                    const parsed = JSON.parse(pendingItem.reason_text);
-                    if (parsed.isCoordination) {
-                        const payload = {
-                            spoke_with_coordination: parsed.spoke_with_coordination,
-                            coordination_reversed: parsed.coordination_reversed,
-                            coordination_no_reversal_reason: parsed.coordination_no_reversal_reason
-                        };
-                        const { error: updateError } = await supabase.from('students').update(payload).eq('id', pendingItem.students.id);
-                        if (updateError) throw updateError;
-
-                        await logAction('coordination_info_updated', 'students', pendingItem.students.id);
-                    }
-                } catch (e) {
-                    // Trata como texto normal caso não seja JSON de coordenação
+            if (type === 'new_student') {
+                if (action === 'approved') {
+                    const { error } = await supabase.from('students').update({ approval_status: 'approved' }).eq('id', id);
+                    if (error) throw error;
+                    await logAction('student_approved', 'students', id);
+                } else {
+                    const { error } = await supabase.from('students').update({ approval_status: 'rejected', is_deleted: true }).eq('id', id);
+                    if (error) throw error;
+                    await logAction('student_rejected', 'students', id);
                 }
+            } else {
+                if (action === 'approved' && pendingItem) {
+                    try {
+                        const parsed = JSON.parse(pendingItem.reason_text);
+                        if (parsed.isCoordination) {
+                            const payload = {
+                                spoke_with_coordination: parsed.spoke_with_coordination,
+                                coordination_reversed: parsed.coordination_reversed,
+                                coordination_no_reversal_reason: parsed.coordination_no_reversal_reason
+                            };
+                            const { error: updateError } = await supabase.from('students').update(payload).eq('id', pendingItem.students.id);
+                            if (updateError) throw updateError;
+
+                            await logAction('coordination_info_updated', 'students', pendingItem.students.id);
+                        }
+                    } catch (e) {
+                        // Trata como texto normal caso não seja JSON de coordenação
+                    }
+                }
+
+                const { error } = await supabase
+                    .from('student_reasons')
+                    .update({
+                        approval_status: action,
+                        approved_by: profile.id,
+                        approved_at: new Date().toISOString()
+                    })
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                await logAction(action === 'approved' ? 'reason_approved' : 'reason_rejected', 'student_reasons', id);
             }
 
-            const { error } = await supabase
-                .from('student_reasons')
-                .update({
-                    approval_status: action,
-                    approved_by: profile.id,
-                    approved_at: new Date().toISOString()
-                })
-                .eq('id', id);
-
-            if (error) throw error;
-
-            await logAction(action === 'approved' ? 'reason_approved' : 'reason_rejected', 'student_reasons', id);
             toast.success(action === 'approved' ? 'Ação aprovada!' : 'Ação rejeitada!');
 
             setPendencias(prev => prev.filter(p => p.id !== id));
@@ -196,13 +238,13 @@ export function Pendencias() {
                                 <div className="md:col-span-1 flex flex-col items-end justify-center gap-3">
                                     <div className="flex w-full sm:w-auto gap-2">
                                         <button
-                                            onClick={() => handleActionClick(item.id, 'rejected')}
+                                            onClick={() => handleActionClick(item.id, 'rejected', item.type)}
                                             className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-4 py-2 border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors"
                                         >
                                             <X className="w-4 h-4" /> Rejeitar
                                         </button>
                                         <button
-                                            onClick={() => handleActionClick(item.id, 'approved')}
+                                            onClick={() => handleActionClick(item.id, 'approved', item.type)}
                                             className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors shadow-sm"
                                         >
                                             <Check className="w-4 h-4" /> Aprovar
