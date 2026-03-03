@@ -56,7 +56,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export function AlunoForm() {
-    const { user, profile, activeUnitId, logAction, hasPrivilege } = useAuth();
+    const { user, profile, activeUnitId, logAction } = useAuth();
     const navigate = useNavigate();
     const [submitting, setSubmitting] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -138,26 +138,6 @@ export function AlunoForm() {
             }).select().single();
 
             if (studentError) throw studentError;
-
-            // 2.5 Insert the initial reason into student_reasons to trigger the approval flow
-            const needsApproval = !(hasPrivilege('admin') || hasPrivilege('diretor'));
-            const approvalStatus = needsApproval ? 'pending' : 'approved';
-
-            const reasonPayload: any = {
-                student_id: studentData.id,
-                reason_text: cleanReasonText,
-                created_by: profile?.id,
-                created_by_name: profile?.full_name,
-                approval_status: approvalStatus
-            };
-
-            if (approvalStatus === 'approved') {
-                reasonPayload.approved_by = profile?.id;
-                reasonPayload.approved_at = new Date().toISOString();
-            }
-
-            const { error: reasonError } = await supabase.from('student_reasons').insert(reasonPayload);
-            if (reasonError) console.error('Erro ao criar student_reasons (primeiro motivo):', reasonError);
 
             // 3. Audit Log
             await logAction('student_created', 'students', studentData.id, {
