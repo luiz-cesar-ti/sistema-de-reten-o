@@ -79,7 +79,7 @@ export function Alunos() {
     }, [activeUnitId, mutate]);
 
     const filteredStudents = students.filter(s => {
-        const matchSearch = s.full_name.toLowerCase().includes(search.toLowerCase());
+        const matchSearch = s.full_name.toLowerCase().includes(search.toLowerCase()) || (s.ra && s.ra.toLowerCase().includes(search.toLowerCase()));
         const matchType = filterType ? s.status === filterType : true;
         const matchLevel = filterLevel ? s.education_level === filterLevel : true;
         const matchCategory = filterCategory ? s.categoria_motivo === filterCategory : true;
