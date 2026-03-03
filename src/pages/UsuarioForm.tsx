@@ -10,9 +10,14 @@ import { Loader2, ArrowLeft, Mail, Copy, Check } from 'lucide-react';
 
 const formSchema = z.object({
     email: z.string().email('E-mail inválido')
-        .refine(val => val.endsWith('@objetivoportal.com.br') || val.endsWith('@objetivobaixada.com.br'), {
-            message: 'O e-mail deve ter o domínio oficial do colégio (@objetivoportal.com.br ou @objetivobaixada.com.br)'
-        }),
+        .refine(val =>
+            val.endsWith('@objetivoportal.com.br') ||
+            val.endsWith('@objetivobaixada.com.br') ||
+            val.endsWith('@objetivopraiagrande.com.br') ||
+            val.endsWith('@ccpa.com.br')
+            , {
+                message: 'O e-mail deve ter o domínio oficial autorizado (@objetivoportal.com.br, @objetivobaixada.com.br, @objetivopraiagrande.com.br ou @ccpa.com.br)'
+            }),
     unit_id: z.string().uuid('Selecione uma unidade'),
     role: z.enum(['coordenacao', 'diretor', 'atendimento'], {
         message: 'Selecione o nível de acesso'
@@ -109,7 +114,7 @@ export function UsuarioForm() {
             {!inviteLink ? (
                 <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
                     <div className="bg-blue-50 border-l-4 border-objetivo-blue p-4 rounded text-sm text-blue-900">
-                        <p><strong>Atenção:</strong> O sistema aceita apenas e-mails institucionais (@objetivoportal.com.br ou @objetivobaixada.com.br).</p>
+                        <p><strong>Atenção:</strong> O sistema aceita apenas e-mails institucionais (@objetivoportal.com.br, @objetivobaixada.com.br, @objetivopraiagrande.com.br ou @ccpa.com.br).</p>
                     </div>
 
                     <div>
