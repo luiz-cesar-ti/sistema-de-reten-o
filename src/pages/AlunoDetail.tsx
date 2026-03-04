@@ -302,7 +302,7 @@ export function AlunoDetail() {
                         {parsed.spoke_with_coordination && parsed.coordination_reversed === false && parsed.coordination_no_reversal_reason && (
                             <div className="mt-2 text-gray-700 text-sm">
                                 <span className="font-medium text-gray-500">Motivo da não reversão:</span>
-                                <div className="mt-1 p-2 bg-white rounded border border-gray-100 italic">{parsed.coordination_no_reversal_reason}</div>
+                                <div className="mt-1 p-2 bg-white rounded border border-gray-300 italic">{parsed.coordination_no_reversal_reason}</div>
                             </div>
                         )}
                     </div>
@@ -411,42 +411,42 @@ export function AlunoDetail() {
 
                 {/* Bloco de Informações do Aluno */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-300 overflow-hidden">
                         {/* Nome — destaque no topo */}
                         <div className="px-6 py-4">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Nome completo</p>
+                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Nome completo</p>
                             <p className="text-lg font-bold text-gray-900">{student.full_name}</p>
                         </div>
 
                         <div>
                             {/* Unidade */}
-                            <div className="px-6 py-3 border-b border-gray-100">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Unidade</p>
+                            <div className="px-6 py-3">
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-0.5">Unidade</p>
                                 <p className="text-sm font-semibold text-gray-900">{student.units?.name}</p>
                             </div>
 
                             {/* Ensino, Série e RA */}
                             <div className="grid grid-cols-2">
                                 <div className="px-6 py-3">
-                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Ensino</p>
+                                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-0.5">Ensino</p>
                                     <p className="text-sm font-semibold text-gray-900">{levelsMap[student.education_level]}</p>
                                 </div>
                                 <div className="px-6 py-3">
-                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Série</p>
+                                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-0.5">Série</p>
                                     <p className="text-sm font-semibold text-gray-900">{student.serie}</p>
                                 </div>
                             </div>
 
                             {student.ra && (
-                                <div className="px-6 py-3 border-t border-gray-100">
-                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">RA (Registro do Aluno)</p>
+                                <div className="px-6 py-3">
+                                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-0.5">RA (Registro do Aluno)</p>
                                     <p className="text-sm font-semibold text-gray-900">{student.ra}</p>
                                 </div>
                             )}
 
                             {/* Status */}
                             <div className="px-6 py-3">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Status</p>
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Status</p>
                                 <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${student.status === 'evasao' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
                                     }`}>
                                     {student.status === 'evasao' ? 'Evasão' : 'Transferência entre unidades da Rede'}
@@ -455,36 +455,36 @@ export function AlunoDetail() {
 
                             {/* Categoria de Motivo */}
                             <div className="px-6 py-3">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Categoria de Motivo</p>
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Categoria de Motivo</p>
                                 {student.categoria_motivo ? (
                                     <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${categoryColors[student.categoria_motivo] || categoryColors['Não Informado']}`}>
                                         {student.categoria_motivo}
                                     </span>
                                 ) : (
-                                    <span className="text-gray-400 text-xs italic">Não categorizado</span>
+                                    <span className="text-gray-500 text-xs italic">Não categorizado</span>
                                 )}
                             </div>
 
                             {/* Data de Registro */}
                             <div className="px-6 py-3">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Data de Registro</p>
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-0.5">Data de Registro</p>
                                 <p className="text-sm font-semibold text-gray-900">{format(parseISO(student.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Bloco de Relato do Atendimento */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-300 space-y-4">
                         <div className="flex items-center justify-between border-b pb-2">
                             <h3 className="font-bold text-gray-900 flex items-center gap-2"><UserMinus className="w-4 h-4 text-orange-500" /> Relato do Atendimento</h3>
                         </div>
                         <div className="text-gray-700 text-sm whitespace-pre-wrap">
-                            {student.attendance_report || <span className="text-gray-400 italic">Nenhum relato inicial registrado.</span>}
+                            {student.attendance_report || <span className="text-gray-500 italic">Nenhum relato inicial registrado.</span>}
                         </div>
                     </div>
 
                     {/* Bloco da Coordenação */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-300 space-y-4">
                         <div className="flex items-center justify-between border-b pb-2">
                             <h3 className="font-bold text-gray-900 flex items-center gap-2"><UserMinus className="w-4 h-4 text-objetivo-blue" /> Coordenação</h3>
                             {student.spoke_with_coordination === null && !editingCoord && !pendingCoordination && (profile?.role === 'coordenacao' || profile?.privileges?.includes('coordenacao')) && (
@@ -505,7 +505,7 @@ export function AlunoDetail() {
                             <div className="space-y-4 text-sm mt-2">
                                 <div>
                                     <p className="font-medium text-gray-700 mb-1">Já conversou com a coordenação?</p>
-                                    <div className="flex gap-4 border p-2 rounded-md border-gray-200 bg-gray-50">
+                                    <div className="flex gap-4 border p-2 rounded-md border-gray-300 bg-gray-50">
                                         <label className="flex items-center gap-2 cursor-pointer">
                                             <input type="radio" checked={coordForm.spoke_with_coordination === true} onChange={() => setCoordForm({ ...coordForm, spoke_with_coordination: true })} className="text-objetivo-blue focus:ring-objetivo-blue" /> Sim
                                         </label>
@@ -518,7 +518,7 @@ export function AlunoDetail() {
                                 {coordForm.spoke_with_coordination === true && (
                                     <div>
                                         <p className="font-medium text-gray-700 mb-1">Conseguiu reverter?</p>
-                                        <div className="flex gap-4 border p-2 rounded-md border-gray-200 bg-gray-50">
+                                        <div className="flex gap-4 border p-2 rounded-md border-gray-300 bg-gray-50">
                                             <label className="flex items-center gap-2 cursor-pointer">
                                                 <input type="radio" checked={coordForm.coordination_reversed === true} onChange={() => setCoordForm({ ...coordForm, coordination_reversed: true, coordination_no_reversal_reason: '' })} className="text-objetivo-blue focus:ring-objetivo-blue" /> Sim
                                             </label>
@@ -564,7 +564,7 @@ export function AlunoDetail() {
                                     </div>
                                 )}
                                 {student.spoke_with_coordination === true && student.coordination_reversed === false && student.coordination_no_reversal_reason && (
-                                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-gray-700 border border-gray-200">
+                                    <div className="mt-2 p-3 bg-gray-50 rounded-md text-gray-700 border border-gray-300">
                                         <p className="text-xs text-gray-500 mb-1 font-semibold">Motivo da não reversão:</p>
                                         {student.coordination_no_reversal_reason}
                                     </div>
@@ -586,7 +586,7 @@ export function AlunoDetail() {
 
                 {/* Timeline de Motivos */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-300">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-lg font-bold text-gray-900">Histórico de Motivos</h2>
                             {(profile?.role === 'atendimento' || hasPrivilege('atendimento')) && (
@@ -605,7 +605,7 @@ export function AlunoDetail() {
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
-                                    className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden"
+                                    className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-300 overflow-hidden"
                                 >
                                     <h3 className="text-sm font-bold text-gray-800 mb-2">Novo Motivo</h3>
 
@@ -672,7 +672,7 @@ export function AlunoDetail() {
                             )}
                         </AnimatePresence>
 
-                        <div className="relative border-l-2 border-gray-200 ml-3 pl-6 space-y-8 py-2">
+                        <div className="relative border-l-2 border-gray-300 ml-3 pl-6 space-y-8 py-2">
                             {reasons.map((reason, idx) => (
                                 <motion.div
                                     key={reason.id}
@@ -692,7 +692,7 @@ export function AlunoDetail() {
                                         <span className="text-xs text-gray-400">• {format(parseISO(reason.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
                                     </div>
 
-                                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 text-sm text-gray-700">
+                                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-300 text-sm text-gray-700">
                                         {renderReasonContent(reason.reason_text)}
                                     </div>
 
@@ -722,7 +722,7 @@ export function AlunoDetail() {
 
                     {/* Histórico de Alterações (Admin/Direção) */}
                     {(hasPrivilege('admin') || hasPrivilege('diretor')) && (
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-300">
                             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                                 <Clock className="w-5 h-5 text-objetivo-blue" /> Histórico de Alterações
                             </h2>

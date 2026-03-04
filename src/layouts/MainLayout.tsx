@@ -10,7 +10,7 @@ export function MainLayout() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
+        <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
             {/* Mobile Overlay */}
             {isMobileMenuOpen && (
                 <div
