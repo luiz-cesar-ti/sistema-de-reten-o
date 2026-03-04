@@ -323,8 +323,8 @@ export function Dashboard() {
                     className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2"
                 >
                     <h3 className="text-lg font-bold text-gray-800 mb-6">Evolução Temporal</h3>
-                    <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-72 w-full">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                             <BarChart data={chartData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" />
@@ -344,8 +344,8 @@ export function Dashboard() {
                     className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col"
                 >
                     <h3 className="text-lg font-bold text-gray-800 mb-2 px-2">Níveis de Ensino</h3>
-                    <div className="h-[300px] flex flex-col justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[300px] w-full flex flex-col justify-center">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                             <PieChart margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
                                 <Pie
                                     data={levelData}
