@@ -51,6 +51,10 @@ texto reescrito, mesmo que estejam em parágrafos diferentes.
 
 Não omita nenhum fato relevante.
 
+Responda exclusivamente em português brasileiro. 
+Não utilize caracteres, palavras ou expressões de nenhum 
+outro idioma em nenhuma circunstância.
+
 Corrija completamente erros ortográficos, gramaticais, de concordância e pontuação.
 
 Substitua linguagem informal por linguagem profissional clara e natural, adequada ao ambiente escolar.
