@@ -42,28 +42,34 @@ const levelsMap: Record<string, string> = {
 const COLORS = ['#1a237e', '#FFA000', '#f44336', '#4caf50'];
 
 // --- SWR FETCHER ---
-const fetchDashboardData = async ([, activeUnitId, dateRange, userContext]: [string, string, { start: string, end: string }, { isApprover: boolean, profileId: string | undefined }]) => {
+const fetchDashboardData = async ([, activeUnitId, dateFilters, userContext]: [string, string, { global: { start: string, end: string }, category: { start: string, end: string } }, { isApprover: boolean, profileId: string | undefined }]) => {
     if (!activeUnitId) throw new Error("No active unit");
 
     const currentMonthStart = new Date();
     currentMonthStart.setDate(1);
     currentMonthStart.setHours(0, 0, 0, 0);
 
-    const startStr = dateRange.start + 'T00:00:00';
-    const endStr = dateRange.end + 'T23:59:59';
+    const startStr = dateFilters.global.start + 'T00:00:00';
+    const endStr = dateFilters.global.end + 'T23:59:59';
     const startD = new Date(startStr);
     const endD = new Date(endStr);
+
+    const catStartStr = dateFilters.category.start + 'T00:00:00';
+    const catEndStr = dateFilters.category.end + 'T23:59:59';
+    const catStartD = new Date(catStartStr);
+    const catEndD = new Date(catEndStr);
 
     const [
         studentsResult,
         pendentesResult,
         pendentesResult2,
         cancelsResult,
-        transfersResult
+        transfersResult,
+        categoryStudentsResult
     ] = await Promise.all([
         supabase
             .from('students')
-            .select('id, status, education_level, created_at, full_name, serie, spoke_with_coordination, coordination_reversed, spoke_with_direction, categoria_motivo')
+            .select('id, status, education_level, created_at, full_name, serie, spoke_with_coordination, coordination_reversed, spoke_with_direction')
             .eq('unit_id', activeUnitId)
             .eq('is_deleted', false)
             .neq('approval_status', 'pending')
@@ -99,13 +105,23 @@ const fetchDashboardData = async ([, activeUnitId, dateRange, userContext]: [str
                 : Promise.resolve({ count: 0 }),
 
         supabase.from('students').select('id', { count: 'exact', head: true })
-            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'evasao'),
+            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'evasao').gte('created_at', startD.toISOString()).lte('created_at', endD.toISOString()),
 
         supabase.from('students').select('id', { count: 'exact', head: true })
-            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'transferencia_rede')
+            .eq('unit_id', activeUnitId).eq('is_deleted', false).neq('approval_status', 'pending').eq('status', 'transferencia_rede').gte('created_at', startD.toISOString()).lte('created_at', endD.toISOString()),
+
+        supabase
+            .from('students')
+            .select('status, categoria_motivo')
+            .eq('unit_id', activeUnitId)
+            .eq('is_deleted', false)
+            .neq('approval_status', 'pending')
+            .gte('created_at', catStartD.toISOString())
+            .lte('created_at', catEndD.toISOString())
     ]);
 
     const students = studentsResult.data || [];
+    const categoryStudents = categoryStudentsResult.data || [];
     const pendentesCount = (pendentesResult.count || 0) + (pendentesResult2?.count || 0);
     const totalCancels = cancelsResult.count || 0;
     const totalTransfers = transfersResult.count || 0;
@@ -139,16 +155,18 @@ const fetchDashboardData = async ([, activeUnitId, dateRange, userContext]: [str
         const nm = levelsMap[s.education_level] || s.education_level;
         lvlMap[nm] = (lvlMap[nm] || 0) + 1;
 
-        const cat = s.categoria_motivo || 'Não Informado';
-        if (!catMap[cat]) catMap[cat] = { evasoes: 0, transferencias: 0 };
-        if (s.status === 'evasao') catMap[cat].evasoes++;
-        else if (s.status === 'transferencia_rede') catMap[cat].transferencias++;
-
         if (s.spoke_with_coordination) spokeCoord++;
         if (s.coordination_reversed) reverted++;
         if (s.spoke_with_direction) spokeDir++;
 
         if (new Date(s.created_at) >= currentMonthStart) mesAtualCount++;
+    });
+
+    categoryStudents.forEach(s => {
+        const cat = s.categoria_motivo || 'Não Informado';
+        if (!catMap[cat]) catMap[cat] = { evasoes: 0, transferencias: 0 };
+        if (s.status === 'evasao') catMap[cat].evasoes++;
+        else if (s.status === 'transferencia_rede') catMap[cat].transferencias++;
     });
 
     const totalS = students.length || 1;
@@ -162,7 +180,7 @@ const fetchDashboardData = async ([, activeUnitId, dateRange, userContext]: [str
                 Evasão: counts.evasoes,
                 'Transferência entre unidades da Rede': counts.transferencias,
                 total,
-                percent: students.length > 0 ? Math.round((total / students.length) * 100) : 0
+                percent: categoryStudents.length > 0 ? Math.round((total / categoryStudents.length) * 100) : 0
             };
         })
         .filter(cat => cat.total > 0)
@@ -192,18 +210,25 @@ export function Dashboard() {
     const { activeUnitId, hasPrivilege, units, profile } = useAuth();
     const activeUnit = units.find(u => u.id === activeUnitId);
 
-    const [dateRange, setDateRange] = useState({
+    const [globalDateRange, setGlobalDateRange] = useState({
         start: format(subMonths(new Date(), 5), 'yyyy-MM-dd'),
         end: format(new Date(), 'yyyy-MM-dd')
     });
+    const [globalPeriodSelect, setGlobalPeriodSelect] = useState<string>('Últimos 6 Meses');
+
+    const [categoryDateRange, setCategoryDateRange] = useState({
+        start: format(subMonths(new Date(), 5), 'yyyy-MM-dd'),
+        end: format(new Date(), 'yyyy-MM-dd')
+    });
+    const [categoryPeriodSelect, setCategoryPeriodSelect] = useState<string>('Últimos 6 Meses');
+
     const [selectedCategory, setSelectedCategory] = useState<string>('Todas as Categorias');
-    const [periodSelect, setPeriodSelect] = useState<string>('Últimos 6 Meses');
 
     const isApprover = hasPrivilege('admin') || hasPrivilege('diretor');
     const userContext = { isApprover, profileId: profile?.id };
 
     const { data, isLoading } = useSWR(
-        activeUnitId ? ['dashboard', activeUnitId, dateRange, userContext] : null,
+        activeUnitId ? ['dashboard', activeUnitId, { global: globalDateRange, category: categoryDateRange }, userContext] : null,
         fetchDashboardData,
         {
             revalidateOnFocus: false, // Evita refetches excessivos ao trocar de aba do navegador
@@ -237,33 +262,49 @@ export function Dashboard() {
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-8">
                 <div>
                     <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
                     <p className="text-sm md:text-lg font-semibold text-objetivo-blue mt-1">Bem-Vindo {activeUnit?.name || ''}</p>
                 </div>
 
                 {/* Global Date Filter Component */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-100 w-full sm:w-auto">
-                    <div className="flex flex-col w-full sm:w-auto">
-                        <span className="text-xs text-gray-500 font-medium ml-1">Início</span>
-                        <input
-                            type="date"
-                            className="text-sm border-0 focus:ring-0 p-1 text-gray-700 bg-transparent cursor-pointer w-full"
-                            value={dateRange.start}
-                            onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                        />
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-gray-100 w-full xl:w-auto overflow-x-auto">
+                    <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-200 w-full sm:w-auto flex-nowrap overflow-x-auto">
+                        {['Este Mês', 'Últimos 3 Meses', 'Últimos 6 Meses', 'Personalizado'].map(period => (
+                            <button
+                                key={period}
+                                onClick={() => {
+                                    setGlobalPeriodSelect(period);
+                                    const end = format(new Date(), 'yyyy-MM-dd');
+                                    if (period === 'Este Mês') setGlobalDateRange({ start: format(startOfMonth(new Date()), 'yyyy-MM-dd'), end });
+                                    else if (period === 'Últimos 3 Meses') setGlobalDateRange({ start: format(subMonths(new Date(), 3), 'yyyy-MM-dd'), end });
+                                    else if (period === 'Últimos 6 Meses') setGlobalDateRange({ start: format(subMonths(new Date(), 6), 'yyyy-MM-dd'), end });
+                                }}
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors ${globalPeriodSelect === period ? 'bg-white text-objetivo-blue shadow-sm border border-gray-200' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+                            >
+                                {period}
+                            </button>
+                        ))}
                     </div>
-                    <span className="text-gray-300 hidden sm:block">-</span>
-                    <div className="flex flex-col w-full sm:w-auto">
-                        <span className="text-xs text-gray-500 font-medium ml-1">Fim</span>
-                        <input
-                            type="date"
-                            className="text-sm border-0 focus:ring-0 p-1 text-gray-700 bg-transparent cursor-pointer w-full"
-                            value={dateRange.end}
-                            onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                        />
-                    </div>
+
+                    {globalPeriodSelect === 'Personalizado' && (
+                        <div className="flex items-center gap-2 px-2 mt-2 sm:mt-0 w-full sm:w-auto shrink-0">
+                            <input
+                                type="date"
+                                className="text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-objetivo-blue/20 focus:border-objetivo-blue p-1.5 text-gray-700 w-full"
+                                value={globalDateRange.start}
+                                onChange={(e) => setGlobalDateRange({ ...globalDateRange, start: e.target.value })}
+                            />
+                            <span className="text-gray-400">-</span>
+                            <input
+                                type="date"
+                                className="text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-objetivo-blue/20 focus:border-objetivo-blue p-1.5 text-gray-700 w-full"
+                                value={globalDateRange.end}
+                                onChange={(e) => setGlobalDateRange({ ...globalDateRange, end: e.target.value })}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -460,14 +501,14 @@ export function Dashboard() {
                             </select>
 
                             <select
-                                value={periodSelect}
+                                value={categoryPeriodSelect}
                                 onChange={(e) => {
                                     const val = e.target.value;
-                                    setPeriodSelect(val);
+                                    setCategoryPeriodSelect(val);
                                     const end = format(new Date(), 'yyyy-MM-dd');
-                                    if (val === 'Mês Atual') setDateRange({ start: format(startOfMonth(new Date()), 'yyyy-MM-dd'), end });
-                                    else if (val === 'Últimos 3 Meses') setDateRange({ start: format(subMonths(new Date(), 3), 'yyyy-MM-dd'), end });
-                                    else if (val === 'Últimos 6 Meses') setDateRange({ start: format(subMonths(new Date(), 6), 'yyyy-MM-dd'), end });
+                                    if (val === 'Mês Atual') setCategoryDateRange({ start: format(startOfMonth(new Date()), 'yyyy-MM-dd'), end });
+                                    else if (val === 'Últimos 3 Meses') setCategoryDateRange({ start: format(subMonths(new Date(), 3), 'yyyy-MM-dd'), end });
+                                    else if (val === 'Últimos 6 Meses') setCategoryDateRange({ start: format(subMonths(new Date(), 6), 'yyyy-MM-dd'), end });
                                 }}
                                 className="w-full sm:w-auto rounded-lg border border-gray-300 py-2.5 pl-4 pr-10 text-sm font-medium focus:border-objetivo-blue focus:outline-none focus:ring-2 focus:ring-objetivo-blue/20 bg-gray-50 shadow-sm"
                             >
