@@ -170,9 +170,9 @@ export function AlunoForm() {
                 navigate(`/alunos/${studentData.id}`);
             }
 
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
-            toast.error(err.message || 'Erro ao salvar registro.');
+            toast.error(err instanceof Error ? err.message : 'Erro ao salvar registro.');
         } finally {
             setSubmitting(false);
         }

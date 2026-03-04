@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,14 +12,52 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { AITextEnhancer } from '../components/AITextEnhancer';
 import { categoryColors } from './Alunos';
 
+export interface StudentData {
+    id: string;
+    full_name: string;
+    photo_url: string | null;
+    serie: string;
+    education_level: string;
+    status: string;
+    created_at: string;
+    unit_id: string;
+    ra?: string;
+    categoria_motivo?: string;
+    attendance_report?: string;
+    spoke_with_coordination: boolean | null;
+    spoke_with_direction?: boolean | null;
+    coordination_reversed?: boolean | null;
+    coordination_no_reversal_reason?: string | null;
+    units?: { name: string;[key: string]: unknown };
+}
+
+export interface ReasonData {
+    id: string;
+    reason_text: string;
+    created_at: string;
+    created_by_name: string;
+    approval_status: string;
+    coordination_reversed?: boolean | null;
+    coordination_no_reversal_reason?: string | null;
+    author_role?: string;
+}
+
+export interface AuditLogData {
+    id: string;
+    action: string;
+    created_at: string;
+    user_name: string;
+    details: Record<string, string | boolean | null | undefined>;
+}
+
 export function AlunoDetail() {
     const { id } = useParams<{ id: string }>();
     const { profile, logAction, hasPrivilege } = useAuth();
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
-    const [student, setStudent] = useState<any>(null);
-    const [reasons, setReasons] = useState<any[]>([]);
+    const [student, setStudent] = useState<StudentData | null>(null);
+    const [reasons, setReasons] = useState<ReasonData[]>([]);
 
     const [showAddReason, setShowAddReason] = useState(false);
     const [newReasonText, setNewReasonText] = useState('');
@@ -44,7 +82,7 @@ export function AlunoDetail() {
         setNewReasonText(editor.innerHTML);
     };
 
-    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [auditLogs, setAuditLogs] = useState<AuditLogData[]>([]);
     const [editingCoord, setEditingCoord] = useState(false);
     const [savingCoord, setSavingCoord] = useState(false);
     const [coordForm, setCoordForm] = useState({
@@ -52,12 +90,7 @@ export function AlunoDetail() {
         coordination_reversed: null as boolean | null,
         coordination_no_reversal_reason: '' as string | null
     });
-
-    useEffect(() => {
-        fetchData();
-    }, [id]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         if (!id) return;
         setLoading(true);
         try {
@@ -95,7 +128,7 @@ export function AlunoDetail() {
 
             // Fetch roles for the authors of these reasons
             const authorIds = [...new Set(visibleReasons.map(r => r.created_by))].filter(Boolean);
-            let rolesMap: Record<string, string> = {};
+            const rolesMap: Record<string, string> = {};
             if (authorIds.length > 0) {
                 const { data: profilesData } = await supabase
                     .from('profiles')
@@ -132,13 +165,17 @@ export function AlunoDetail() {
                 .order('created_at', { ascending: false });
 
             setAuditLogs(logsData || []);
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
             toast.error('Erro ao carregar os dados do aluno.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, navigate, hasPrivilege, profile?.id]);
+
+    useEffect(() => {
+        fetchData();
+    }, [id, fetchData]);
 
     const handleAddReason = async () => {
         const editorDiv = document.getElementById('reason-textarea');
@@ -155,7 +192,7 @@ export function AlunoDetail() {
             const needsApproval = !(hasPrivilege('admin') || hasPrivilege('diretor'));
             const status = needsApproval ? 'pending' : 'approved';
 
-            const payload: any = {
+            const payload: Record<string, string | null | undefined> = {
                 student_id: id,
                 reason_text: cleanReason,
                 created_by: profile?.id,
@@ -179,7 +216,7 @@ export function AlunoDetail() {
             setNewReasonText('');
             if (editorDiv) editorDiv.innerHTML = ''; // Limpa o editor visual HTML
             setShowAddReason(false);
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
             toast.error('Erro ao adicionar motivo.');
         } finally {
@@ -214,7 +251,7 @@ export function AlunoDetail() {
 
             // Refetch to cleanly update audit logs and status
             fetchData();
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
             toast.error('Erro ao atualizar status.');
         } finally {
@@ -241,7 +278,7 @@ export function AlunoDetail() {
             await logAction('reason_added', 'students', id, { note: 'Aluno excluído (soft delete)' });
             toast.success('Aluno excluído com sucesso!');
             navigate('/alunos');
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
             toast.error('Erro ao excluir aluno.');
         } finally {
@@ -271,7 +308,7 @@ export function AlunoDetail() {
                     </div>
                 );
             }
-        } catch (e) {
+        } catch {
             // Volta para renderização como texto normal
         }
 
@@ -284,9 +321,10 @@ export function AlunoDetail() {
     };
 
     const handleEditCoordClick = () => {
+        if (!student) return;
         setCoordForm({
             spoke_with_coordination: student.spoke_with_coordination,
-            coordination_reversed: student.coordination_reversed,
+            coordination_reversed: student.coordination_reversed ?? null,
             coordination_no_reversal_reason: student.coordination_no_reversal_reason || ''
         });
         setEditingCoord(true);
@@ -496,7 +534,7 @@ export function AlunoDetail() {
                                         <p className="font-medium text-gray-700 mb-1">Motivo da não reversão:</p>
                                         <AITextEnhancer
                                             value={coordForm.coordination_no_reversal_reason || ''}
-                                            onChange={(e: any) => setCoordForm({ ...coordForm, coordination_no_reversal_reason: e.target.value })}
+                                            onChange={(e: { target: { value: string } }) => setCoordForm({ ...coordForm, coordination_no_reversal_reason: e.target.value })}
                                             className="w-full border border-gray-300 rounded-md p-2 text-sm focus:border-objetivo-blue focus:ring-1 focus:ring-objetivo-blue"
                                             rows={3}
                                             placeholder="Descreva..."
@@ -551,7 +589,7 @@ export function AlunoDetail() {
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-lg font-bold text-gray-900">Histórico de Motivos</h2>
-                            {(profile?.role === 'atendimento' || profile?.role === 'coordenacao') && (
+                            {(profile?.role === 'atendimento' || hasPrivilege('atendimento')) && (
                                 <button
                                     onClick={() => setShowAddReason(!showAddReason)}
                                     className="flex items-center gap-1 text-sm bg-objetivo-blue text-white px-3 py-1.5 rounded-md hover:bg-blue-800 transition-colors"
@@ -616,7 +654,11 @@ export function AlunoDetail() {
                                         id="reason-textarea"
                                         asDiv={true}
                                         value={newReasonText}
-                                        onChange={(e: any) => setNewReasonText(e.target.value)}
+                                        onChange={(e: unknown) => {
+                                            const event = e as React.ChangeEvent<HTMLTextAreaElement> | React.FormEvent<HTMLDivElement>;
+                                            const val = 'target' in event && 'value' in event.target ? event.target.value : (event.target as HTMLDivElement).innerHTML;
+                                            setNewReasonText(val);
+                                        }}
                                         className="w-full rounded-md border border-gray-300 p-3 text-sm focus:outline-none focus:ring-1 focus:ring-objetivo-blue focus:border-objetivo-blue bg-white"
                                     />
                                     <div className="flex justify-between items-center mt-3">

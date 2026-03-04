@@ -22,7 +22,7 @@ const AnimatedNumber = ({ value }: { value: number }) => {
             else setDisplay(value);
         };
         requestAnimationFrame(step);
-    }, [value]);
+    }, [value, display]);
     return <>{display}</>;
 };
 import {
@@ -42,7 +42,7 @@ const levelsMap: Record<string, string> = {
 const COLORS = ['#1a237e', '#FFA000', '#f44336', '#4caf50'];
 
 // --- SWR FETCHER ---
-const fetchDashboardData = async ([_key, activeUnitId, dateRange, userContext]: [string, string, { start: string, end: string }, { isApprover: boolean, profileId: string | undefined }]) => {
+const fetchDashboardData = async ([, activeUnitId, dateRange, userContext]: [string, string, { start: string, end: string }, { isApprover: boolean, profileId: string | undefined }]) => {
     if (!activeUnitId) throw new Error("No active unit");
 
     const currentMonthStart = new Date();
@@ -111,7 +111,7 @@ const fetchDashboardData = async ([_key, activeUnitId, dateRange, userContext]: 
     const totalTransfers = transfersResult.count || 0;
 
     const monthMap = new Map();
-    let loopDate = new Date(endD);
+    const loopDate = new Date(endD);
     loopDate.setDate(1);
     loopDate.setHours(0, 0, 0, 0);
     const startMonth = new Date(startD);
@@ -224,9 +224,9 @@ export function Dashboard() {
     // Auto-reset category if the selected one is no longer in the filtered data range
     useEffect(() => {
         if (selectedCategory !== 'Todas as Categorias') {
-            const categoryExists = categoryData.some((c: any) => c.name === selectedCategory && (c.Evasão > 0 || c['Transferência entre unidades da Rede'] > 0));
+            const categoryExists = categoryData.some((c: { name: string, Evasão: number, 'Transferência entre unidades da Rede': number }) => c.name === selectedCategory && (c.Evasão > 0 || c['Transferência entre unidades da Rede'] > 0));
             if (!categoryExists) {
-                setSelectedCategory('Todas as Categorias');
+                setTimeout(() => setSelectedCategory('Todas as Categorias'), 0);
             }
         }
     }, [categoryData, selectedCategory]);
@@ -316,22 +316,22 @@ export function Dashboard() {
                                     dataKey="value"
                                     isAnimationActive={true}
                                     labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
-                                    label={(props: any) => {
+                                    label={(props: { cx?: number, cy?: number, midAngle?: number, outerRadius?: number, percent?: number, value?: string | number }) => {
                                         if (!props || typeof props.percent !== 'number') return null;
                                         const { cx, cy, midAngle, outerRadius, percent, value } = props;
                                         const RADIAN = Math.PI / 180;
                                         // Ponto da label mais próximo do centro que as bordas
                                         const rInfo = (outerRadius || 80) + 18;
                                         const angle = midAngle || 0;
-                                        const x = cx + rInfo * Math.cos(-angle * RADIAN);
-                                        const y = cy + rInfo * Math.sin(-angle * RADIAN);
+                                        const x = (cx || 0) + rInfo * Math.cos(-angle * RADIAN);
+                                        const y = (cy || 0) + rInfo * Math.sin(-angle * RADIAN);
 
                                         return (
                                             <text
                                                 x={x}
                                                 y={y}
                                                 fill="#374151"
-                                                textAnchor={x > cx ? 'start' : 'end'}
+                                                textAnchor={x > (cx || 0) ? 'start' : 'end'}
                                                 dominantBaseline="central"
                                                 className="text-[12px] font-bold"
                                             >
@@ -452,7 +452,7 @@ export function Dashboard() {
                                 className="w-full sm:w-auto rounded-lg border border-gray-300 py-2.5 pl-4 pr-10 text-sm font-medium focus:border-objetivo-blue focus:outline-none focus:ring-2 focus:ring-objetivo-blue/20 bg-gray-50 shadow-sm"
                             >
                                 <option value="Todas as Categorias">Todas as Categorias</option>
-                                {categoryData.filter((c: any) => c.Evasão > 0 || c['Transferência entre unidades da Rede'] > 0).map((cat: any) => (
+                                {categoryData.filter((c: { name: string, Evasão: number, 'Transferência entre unidades da Rede': number }) => c.Evasão > 0 || c['Transferência entre unidades da Rede'] > 0).map((cat: { name: string }) => (
                                     <option key={cat.name} value={cat.name}>
                                         {cat.name}
                                     </option>
@@ -485,10 +485,10 @@ export function Dashboard() {
                         let currTransfers = 0;
 
                         if (selectedCategory === 'Todas as Categorias') {
-                            currCancels = categoryData.reduce((acc: number, c: any) => acc + c.Evasão, 0);
-                            currTransfers = categoryData.reduce((acc: number, c: any) => acc + c['Transferência entre unidades da Rede'], 0);
+                            currCancels = categoryData.reduce((acc: number, c: { Evasão: number }) => acc + c.Evasão, 0);
+                            currTransfers = categoryData.reduce((acc: number, c: { 'Transferência entre unidades da Rede': number }) => acc + c['Transferência entre unidades da Rede'], 0);
                         } else {
-                            const found = categoryData.find((c: any) => c.name === selectedCategory);
+                            const found = categoryData.find((c: { name: string, Evasão: number, 'Transferência entre unidades da Rede': number }) => c.name === selectedCategory);
                             if (found) {
                                 currCancels = found.Evasão;
                                 currTransfers = found['Transferência entre unidades da Rede'];
@@ -560,8 +560,8 @@ export function Dashboard() {
                                                         isAnimationActive={true}
                                                         animationDuration={600}
                                                         animationEasing="ease-out"
-                                                        label={(props: any) => {
-                                                            const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
+                                                        label={(props: { cx?: number, cy?: number, midAngle?: number, innerRadius?: number, outerRadius?: number, percent?: number }) => {
+                                                            const { cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 } = props;
                                                             if (typeof percent !== 'number') return null;
                                                             const RADIAN = Math.PI / 180;
                                                             const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -582,7 +582,7 @@ export function Dashboard() {
                                                             <Cell key={`cell-${index}`} fill={entry.fill} />
                                                         ))}
                                                     </Pie>
-                                                    <RechartsTooltip formatter={(val: any) => [val, 'casos']} />
+                                                    <RechartsTooltip formatter={(val: number | undefined) => [val || 0, 'casos']} />
                                                 </PieChart>
                                             </ResponsiveContainer>
                                             {/* Center Text */}
@@ -613,7 +613,7 @@ export function Dashboard() {
     );
 }
 
-function MetricCard({ title, value, icon, color, delay, flash = false }: any) {
+function MetricCard({ title, value, icon, color, delay, flash = false }: { title: string, value: string | number | React.ReactNode, icon: React.ReactNode, color: string, delay: number, flash?: boolean }) {
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}

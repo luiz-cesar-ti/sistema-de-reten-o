@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -34,7 +34,7 @@ const roleStyles: Record<string, string> = {
     'atendimento': 'bg-blue-50 text-blue-700 border-blue-200'
 };
 
-const roleIcons: Record<string, any> = {
+const roleIcons: Record<string, React.ElementType> = {
     'admin': Shield,
     'diretor': ShieldCheck,
     'coordenacao': Eye,
@@ -70,12 +70,7 @@ export function Usuarios() {
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
 
-    useEffect(() => {
-        if (!activeUnitId) return;
-        fetchUsers();
-    }, [activeUnitId]);
-
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
             const { data, error } = await supabase
@@ -87,7 +82,7 @@ export function Usuarios() {
 
             if (error) throw error;
 
-            const profiles = (data || []).map(item => (item as any).profile as UserProfile).filter(p => Boolean(p) && !p.is_deleted);
+            const profiles = (data || []).map(item => (item as unknown as { profile: UserProfile }).profile).filter(p => Boolean(p) && !p.is_deleted);
             setUsers(profiles);
         } catch (err) {
             console.error(err);
@@ -95,7 +90,12 @@ export function Usuarios() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeUnitId]);
+
+    useEffect(() => {
+        if (!activeUnitId) return;
+        fetchUsers();
+    }, [activeUnitId, fetchUsers]);
 
     const togglePrivilege = async (userId: string, privilege: string) => {
         const userToUpdate = users.find(u => u.id === userId);
@@ -206,7 +206,7 @@ export function Usuarios() {
         setSelectedUser(null);
     };
 
-    const unificados: Record<string, any> = {};
+    const unificados: Record<string, UserProfile> = {};
     users.forEach(u => {
         if (!unificados[u.id]) unificados[u.id] = u;
     });

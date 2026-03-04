@@ -9,7 +9,7 @@ export function Invite() {
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [inviteData, setInviteData] = useState<any>(null);
+    const [inviteData, setInviteData] = useState<Record<string, unknown> | null>(null);
     const [registrationComplete, setRegistrationComplete] = useState(false);
 
     const [fullName, setFullName] = useState('');
@@ -40,7 +40,7 @@ export function Invite() {
                 }
 
                 setInviteData(data);
-            } catch (err) {
+            } catch {
                 toast.error('Link inválido ou expirado. Solicite um novo convite ao administrador.');
             } finally {
                 setLoading(false);
@@ -84,7 +84,7 @@ export function Invite() {
             // 1. Create user in Supabase Auth with metadata
             // Profile will be created on first login (in AuthContext) after email confirmation
             const { error: authError } = await supabase.auth.signUp({
-                email: inviteData.email,
+                email: (inviteData?.email as string) || '',
                 password: password,
                 options: {
                     data: {
@@ -105,9 +105,9 @@ export function Invite() {
             toast.success('Conta criada! Verifique seu e-mail para ativar.');
             setRegistrationComplete(true);
 
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
-            toast.error(err.message || 'Ocorreu um erro ao criar a conta.');
+            toast.error(err instanceof Error ? err.message : 'Ocorreu um erro ao criar a conta.');
         } finally {
             setSubmitting(false);
         }
@@ -143,7 +143,7 @@ export function Invite() {
                     </div>
                     <h2 className="text-2xl font-bold text-white">Verifique seu E-mail</h2>
                     <p className="text-blue-200/60 text-sm">
-                        Enviamos um link de confirmação para <strong className="text-yellow-400">{inviteData?.email}</strong>.
+                        Enviamos um link de confirmação para <strong className="text-yellow-400">{(inviteData?.email as string) || ''}</strong>.
                     </p>
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-blue-200/70">
                         <p>Abra seu e-mail e clique no link de confirmação para ativar sua conta.</p>
@@ -184,7 +184,7 @@ export function Invite() {
                 <form className="space-y-4" onSubmit={handleSubmit}>
                     <div>
                         <label className="block text-xs font-bold text-white tracking-wider uppercase mb-1.5">E-mail</label>
-                        <input type="email" disabled value={inviteData.email} className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3 px-4 text-white/50 sm:text-sm outline-none cursor-not-allowed" />
+                        <input type="email" disabled value={(inviteData?.email as string) || ''} className="block w-full rounded-xl border border-white/10 bg-[#0d1b2a]/60 py-3 px-4 text-white/50 sm:text-sm outline-none cursor-not-allowed" />
                     </div>
 
                     <div>

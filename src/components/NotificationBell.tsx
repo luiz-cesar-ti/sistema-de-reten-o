@@ -108,7 +108,7 @@ export function NotificationBell() {
                 const uniqueAuthorIds = Array.from(authorIds).filter(Boolean);
 
                 // Buscar profiles
-                let profilesMap: Record<string, { name: string, role: string }> = {};
+                const profilesMap: Record<string, { name: string, role: string }> = {};
                 if (uniqueAuthorIds.length > 0) {
                     const { data: profiles } = await supabase
                         .from('profiles')
@@ -187,10 +187,17 @@ export function NotificationBell() {
         }
 
         if (newReadIds.length > 0) {
-            const unread = newReadIds.filter(id => !readIds.includes(id));
-            if (unread.length > 0) {
-                markAsRead(unread);
-            }
+            setTimeout(() => {
+                setReadIds(prev => {
+                    const unread = newReadIds.filter(id => !prev.includes(id));
+                    if (unread.length > 0) {
+                        const next = Array.from(new Set([...prev, ...unread]));
+                        localStorage.setItem('notification_read_ids', JSON.stringify(next));
+                        return next;
+                    }
+                    return prev;
+                });
+            }, 0);
         }
     }, [location.pathname, notifications, isAuthorized]);
 

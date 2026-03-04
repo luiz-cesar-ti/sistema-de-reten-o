@@ -108,7 +108,7 @@ export const AITextEnhancer = forwardRef<HTMLTextAreaElement | HTMLDivElement, A
         <div className="w-full flex flex-col gap-3">
             {asDiv ? (
                 <div
-                    {...(rest as any)}
+                    {...(rest as unknown as React.HTMLAttributes<HTMLDivElement>)}
                     // Passa tanto a ref externa quanto a ref interna
                     ref={(node) => {
                         internalDivRef.current = node as HTMLDivElement;

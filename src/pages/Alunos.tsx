@@ -11,10 +11,10 @@ import { motion } from 'framer-motion';
 const levelsMap: Record<string, string> = {
     'educacao_infantil': 'Educação Infantil',
     'ensino_fundamental_1': 'Ensino Fundamental I',
-    'ensino_fundamental_2': 'Ensino Fundamental II',
     'ensino_medio': 'Ensino Médio'
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const categoryColors: Record<string, string> = {
     'Financeiro / Mensalidade': 'bg-red-50 text-red-700 ring-red-600/20',
     'Pedagógico / Qualidade de Ensino': 'bg-blue-50 text-blue-700 ring-blue-600/20',
@@ -27,7 +27,7 @@ export const categoryColors: Record<string, string> = {
     'Não Informado': 'bg-gray-50 text-gray-700 ring-gray-600/20'
 };
 
-const fetchStudents = async ([_key, activeUnitId]: [string, string]) => {
+const fetchStudents = async ([, activeUnitId]: [string, string]) => {
     if (!activeUnitId) throw new Error("No active unit");
     const { data, error } = await supabase
         .from('students')
@@ -42,7 +42,7 @@ const fetchStudents = async ([_key, activeUnitId]: [string, string]) => {
 };
 
 export function Alunos() {
-    const { activeUnitId, hasPrivilege } = useAuth();
+    const { activeUnitId, hasPrivilege, profile } = useAuth();
     const navigate = useNavigate();
 
     const [search, setSearch] = useState('');
@@ -93,7 +93,7 @@ export function Alunos() {
                     <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Alunos</h1>
                     <p className="mt-1 text-sm text-gray-500">Gestão de evasões e transferências.</p>
                 </div>
-                {hasPrivilege('atendimento') && (
+                {(profile?.role === 'atendimento' || hasPrivilege('atendimento')) && (
                     <Link
                         to="/alunos/novo"
                         className="bg-objetivo-blue hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition-colors"

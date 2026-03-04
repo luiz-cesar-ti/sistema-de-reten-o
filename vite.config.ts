@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type ViteDevServer, type Connect } from 'vite';
 import react from '@vitejs/plugin-react'
 import { config } from 'dotenv'
 
@@ -8,12 +8,13 @@ config({ path: '.env', override: false })
 
 const apiPlugin = () => ({
   name: 'api-plugin',
-  configureServer(server: any) {
-    server.middlewares.use(async (req: any, res: any, next: any) => {
+  configureServer(server: ViteDevServer) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    server.middlewares.use(async (req: Connect.IncomingMessage, res: any, next: Connect.NextFunction) => {
       // Mock da Vercel Function localmente
       if (req.url === '/api/improve-text' && req.method === 'POST') {
-        const chunks: any[] = [];
-        req.on('data', (chunk: any) => { chunks.push(chunk) });
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk: Buffer) => { chunks.push(chunk) });
         req.on('end', async () => {
           try {
             const body = Buffer.concat(chunks).toString('utf-8');
@@ -101,18 +102,18 @@ Se houver ambiguidade no texto original, mantenha a ambiguidade sem tentar escla
               })
             });
 
-            const data: any = await groqResponse.json();
+            const data = (await groqResponse.json()) as { choices?: { message?: { content?: string } }[] };
 
             if (!groqResponse.ok) {
               res.statusCode = groqResponse.status;
               return res.end(JSON.stringify({ error: 'Erro na API da Groq', details: data }));
             }
 
-            const improvedText = data.choices[0]?.message?.content?.trim();
+            const improvedText = data.choices?.[0]?.message?.content?.trim();
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
             return res.end(JSON.stringify({ improvedText }));
-          } catch (error: any) {
+          } catch (error) {
             console.error('Vite Proxy Error:', error);
             res.statusCode = 500;
             return res.end(JSON.stringify({ error: 'Erro interno no mock da API' }));

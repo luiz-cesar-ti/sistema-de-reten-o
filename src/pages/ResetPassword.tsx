@@ -21,7 +21,7 @@ export function ResetPassword() {
 
             setSent(true);
             toast.success('E-mail de recuperação enviado!');
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
             toast.error('Erro ao enviar e-mail. Verifique o endereço.');
         } finally {

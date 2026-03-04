@@ -51,7 +51,7 @@ export function Login() {
 
             await logAction('login_success', 'auth', userId, { ip: 'unknown' });
             navigate('/dashboard');
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
             toast.error('Credenciais inválidas.');
 

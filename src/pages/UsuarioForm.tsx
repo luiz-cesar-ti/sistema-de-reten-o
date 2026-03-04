@@ -83,7 +83,7 @@ export function UsuarioForm() {
             setInviteLink(`${window.location.origin}/convite/${generatedToken}`);
             toast.success('Link de convite gerado!');
 
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
             toast.error('Erro ao gerar convite.');
         } finally {

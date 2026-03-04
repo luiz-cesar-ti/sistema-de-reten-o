@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { format, parseISO } from 'date-fns';
@@ -10,19 +10,38 @@ import { motion, AnimatePresence } from 'framer-motion';
 import DOMPurify from 'dompurify';
 import { ConfirmModal } from '../components/ConfirmModal';
 
+interface StudentData {
+    id: string;
+    full_name: string;
+    photo_url?: string | null;
+    serie: string;
+    education_level: string;
+    status: string;
+    created_at?: string;
+    unit_id?: string;
+    spoke_with_coordination?: boolean | null;
+    is_deleted?: boolean;
+}
+
+
+
+interface PendenciaItem {
+    id: string;
+    type?: string;
+    reason_text?: string;
+    created_at: string;
+    created_by_name?: string;
+    students: StudentData;
+}
+
 export function Pendencias() {
     const { profile, activeUnitId, logAction } = useAuth();
 
     const [loading, setLoading] = useState(true);
-    const [pendencias, setPendencias] = useState<any[]>([]);
+    const [pendencias, setPendencias] = useState<PendenciaItem[]>([]);
     const [confirmActionData, setConfirmActionData] = useState<{ id: string, action: 'approved' | 'rejected', type: 'reason' | 'new_student' } | null>(null);
 
-    useEffect(() => {
-        if (!activeUnitId) return;
-        fetchPendencias();
-    }, [activeUnitId]);
-
-    const fetchPendencias = async () => {
+    const fetchPendencias = useCallback(async () => {
         setLoading(true);
         try {
             // Must query student_reasons with status 'pending' matching the active unit
@@ -39,42 +58,75 @@ export function Pendencias() {
 
             if (error) throw error;
 
-            const { data: studentsData, error: studentsError } = await supabase
+            const { data: studentsDataRaw, error: studentsError } = await supabase
                 .from('students')
-                .select(`id, full_name, unit_id, serie, education_level, status, is_deleted, attendance_report, created_at`)
+                .select(`id, full_name, unit_id, serie, education_level, status, is_deleted, attendance_report, created_at, created_by`)
                 .eq('approval_status', 'pending')
                 .eq('unit_id', activeUnitId)
                 .eq('is_deleted', false);
 
             if (studentsError) throw studentsError;
 
-            const reasonsList = (data || []).map(r => ({ ...r, type: 'reason' }));
-            const studentsList = (studentsData || []).map(s => ({
-                id: s.id,
-                type: 'new_student',
-                reason_text: s.attendance_report || 'Novo Registro',
-                created_at: s.created_at,
-                created_by_name: 'Usuário (Novo Registro)',
-                students: {
-                    id: s.id,
-                    full_name: s.full_name,
-                    unit_id: s.unit_id,
-                    serie: s.serie,
-                    education_level: s.education_level,
-                    status: s.status,
-                    is_deleted: s.is_deleted
+            const studentsData = studentsDataRaw || [];
+
+            // Fetch profiles for the creators
+            const profileIds = [...new Set(studentsData.map(s => s.created_by).filter(Boolean))];
+            const profilesMap: Record<string, { full_name: string, role: string }> = {};
+
+            if (profileIds.length > 0) {
+                const { data: profilesData } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, role')
+                    .in('id', profileIds);
+
+                if (profilesData) {
+                    profilesData.forEach(p => {
+                        profilesMap[p.id] = { full_name: p.full_name, role: p.role };
+                    });
                 }
-            }));
+            }
+
+            const roleNames: Record<string, string> = { 'atendimento': 'Atendimento', 'coordenacao': 'Coordenação', 'direcao': 'Direção', 'admin': 'Administrador' };
+
+            const reasonsList = (data || []).map(r => ({ ...r, type: 'reason' }));
+            const studentsList = studentsData.map(s => {
+                const creator = s.created_by && profilesMap[s.created_by] ? profilesMap[s.created_by] : null;
+                const authorRoleRaw = creator?.role || 'user';
+                const authorRole = roleNames[authorRoleRaw] || authorRoleRaw;
+                const createdByName = creator ? `${creator.full_name} (${authorRole})` : 'Usuário (Novo Registro)';
+
+                return {
+                    id: s.id,
+                    type: 'new_student',
+                    reason_text: s.attendance_report || 'Novo Registro',
+                    created_at: s.created_at,
+                    created_by_name: createdByName,
+                    students: {
+                        id: s.id,
+                        full_name: s.full_name,
+                        unit_id: s.unit_id,
+                        serie: s.serie,
+                        education_level: s.education_level,
+                        status: s.status,
+                        is_deleted: s.is_deleted
+                    }
+                };
+            });
 
             const combined = [...reasonsList, ...studentsList].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            setPendencias(combined);
+            setPendencias(combined as unknown as PendenciaItem[]);
         } catch (err) {
             console.error(err);
             toast.error('Erro ao buscar pendências');
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeUnitId]);
+
+    useEffect(() => {
+        if (!activeUnitId) return;
+        fetchPendencias();
+    }, [activeUnitId, fetchPendencias]);
 
     const handleActionClick = (id: string, action: 'approved' | 'rejected', type: 'reason' | 'new_student') => {
         setConfirmActionData({ id, action, type });
@@ -101,7 +153,7 @@ export function Pendencias() {
             } else {
                 if (action === 'approved' && pendingItem) {
                     try {
-                        const parsed = JSON.parse(pendingItem.reason_text);
+                        const parsed = JSON.parse(pendingItem.reason_text || '{}');
                         if (parsed.isCoordination) {
                             const payload = {
                                 spoke_with_coordination: parsed.spoke_with_coordination,
@@ -113,7 +165,7 @@ export function Pendencias() {
 
                             await logAction('coordination_info_updated', 'students', pendingItem.students.id);
                         }
-                    } catch (e) {
+                    } catch {
                         // Trata como texto normal caso não seja JSON de coordenação
                     }
                 }
@@ -165,7 +217,7 @@ export function Pendencias() {
                     </div>
                 );
             }
-        } catch (e) {
+        } catch {
             // Volta para renderização como texto normal
         }
 
@@ -225,23 +277,32 @@ export function Pendencias() {
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-sm font-medium text-gray-500 mt-2">Aluno</p>
-                                    <Link to={`/alunos/${item.students.id}`} className="font-bold text-objetivo-blue hover:underline">
-                                        {item.students.full_name}
-                                    </Link>
-                                    <p className="text-xs text-gray-500">{item.students.serie}</p>
-                                    <span className={`mt-2 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${item.students.status === 'evasao' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'
-                                        }`}>
-                                        {item.students.status === 'evasao' ? 'Evasão' : 'Transf. Rede'}
-                                    </span>
+                                    <div className="mt-3 flex flex-col gap-0.5">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-objetivo-blue/70">
+                                            ALUNO
+                                        </span>
+                                        <Link to={`/alunos/${item.students.id}`} className="text-lg font-black text-objetivo-blue hover:text-blue-800 transition-colors">
+                                            {item.students.full_name}
+                                        </Link>
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                            <span className="text-sm text-gray-600 font-medium">{item.students.serie}</span>
+                                            <span className="text-gray-300">•</span>
+                                            <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${item.students.status === 'evasao' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-orange-50 text-orange-700 ring-orange-600/20'}`}>
+                                                {item.students.status === 'evasao' ? 'Evasão' : 'Transf. Rede'}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="md:col-span-2 space-y-2">
                                     {item.type === 'new_student' ? (
                                         <div className="bg-white p-4 rounded-lg border border-blue-100 shadow-sm">
-                                            <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-                                                <p className="text-sm font-semibold text-blue-900">Dados do Novo Registro</p>
-                                                <p className="text-xs text-gray-400">{format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+                                            <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-blue-900">Dados do Novo Registro</p>
+                                                    <p className="text-xs font-medium text-blue-600/80 mt-1">Lançado por: <span className="font-bold">{item.created_by_name}</span></p>
+                                                </div>
+                                                <p className="text-xs text-gray-400 self-start">{format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
                                             </div>
                                             <div className="grid grid-cols-2 gap-y-2 text-sm">
                                                 <div className="text-gray-500">Nível:</div>
@@ -262,7 +323,7 @@ export function Pendencias() {
                                                 <p className="text-xs text-gray-400">{format(parseISO(item.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
                                             </div>
                                             <div className="bg-gray-50 p-3 rounded border border-gray-100 text-sm text-gray-700">
-                                                {renderReasonContent(item.reason_text)}
+                                                {renderReasonContent(item.reason_text || '')}
                                             </div>
                                         </>
                                     )}
@@ -271,13 +332,13 @@ export function Pendencias() {
                                 <div className="md:col-span-1 flex flex-col items-end justify-center gap-3">
                                     <div className="flex w-full sm:w-auto gap-2">
                                         <button
-                                            onClick={() => handleActionClick(item.id, 'rejected', item.type)}
+                                            onClick={() => handleActionClick(item.id, 'rejected', item.type as 'reason' | 'new_student')}
                                             className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-4 py-2 border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors"
                                         >
                                             <X className="w-4 h-4" /> Rejeitar
                                         </button>
                                         <button
-                                            onClick={() => handleActionClick(item.id, 'approved', item.type)}
+                                            onClick={() => handleActionClick(item.id, 'approved', item.type as 'reason' | 'new_student')}
                                             className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors shadow-sm"
                                         >
                                             <Check className="w-4 h-4" /> Aprovar

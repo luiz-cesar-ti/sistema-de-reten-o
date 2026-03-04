@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -28,7 +28,7 @@ interface AuthContextType {
     setActiveUnitId: (id: string) => void;
     isLoading: boolean;
     signOut: () => Promise<void>;
-    logAction: (action: string, entity: string, entityId?: string, details?: any) => Promise<void>;
+    logAction: (action: string, entity: string, entityId?: string, details?: Record<string, unknown>) => Promise<void>;
     hasPrivilege: (priv: string) => boolean;
 }
 
@@ -53,13 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
-    const signOut = async () => {
-        await logAction('user_logout', 'auth');
-        await supabase.auth.signOut();
-        navigate('/login');
-    };
-
-    const logAction = async (action: string, entity: string, entityId?: string, details?: any) => {
+    const logAction = useCallback(async (action: string, entity: string, entityId?: string, details?: Record<string, unknown>) => {
         if (!user || (!profile && action !== 'login_success')) return;
         try {
             await supabase.from('audit_logs').insert({
@@ -73,142 +67,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
             console.error('Failed to log action:', err);
         }
-    };
+    }, [user, profile]);
 
-    useEffect(() => {
-        // Initial session fetch - refresh first to ensure JWT claims are current
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            if (session) {
-                // Refresh to get latest JWT claims from the hook
-                const { data: refreshData } = await supabase.auth.refreshSession();
-                const freshSession = refreshData?.session || session;
-                setSession(freshSession);
-                setUser(freshSession.user);
-                fetchProfileAndUnits(freshSession.user.id);
-            } else {
-                setSession(null);
-                setUser(null);
-                setIsLoading(false);
-            }
-        });
+    const signOut = useCallback(async () => {
+        await logAction('user_logout', 'auth');
+        await supabase.auth.signOut();
+        navigate('/login');
+    }, [logAction, navigate]);
 
-        // Listen for auth changes
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-
-            if (event === 'SIGNED_IN') {
-                if (session) fetchProfileAndUnits(session.user.id);
-            } else if (event === 'SIGNED_OUT') {
-                setProfile(null);
-                setUnits([]);
-                setActiveUnitIdState(null);
-                setIsLoading(false);
-            } else if (event === 'TOKEN_REFRESHED') {
-                // Keep session alive
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, [navigate]);
-
-    // Activity timeout logic
-    useEffect(() => {
-        let timeoutId: ReturnType<typeof setTimeout>;
-
-        const resetTimeout = () => {
-            if (timeoutId) clearTimeout(timeoutId);
-            if (session) {
-                timeoutId = setTimeout(() => {
-                    toast.error('Sua sessão expirou. Faça login novamente.');
-                    signOut();
-                }, SESSION_TIMEOUT);
-            }
-        };
-
-        // Events to track activity
-        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-
-        if (session) {
-            resetTimeout();
-            events.forEach((event) => window.addEventListener(event, resetTimeout));
-        }
-
-        return () => {
-            if (timeoutId) clearTimeout(timeoutId);
-            events.forEach((event) => window.removeEventListener(event, resetTimeout));
-        };
-    }, [session, signOut]);
-
-    const fetchProfileAndUnits = async (userId: string) => {
-        try {
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-
-            // If no profile exists, try to create from invite data
-            if (profileError && profileError.code === 'PGRST116') {
-                const created = await createProfileFromInvite(userId);
-                if (!created) {
-                    toast.error('Perfil não encontrado. Verifique se o convite foi aceito.');
-                    await supabase.auth.signOut();
-                    return;
-                }
-                // Retry fetching the newly created profile
-                // Force JWT refresh so the hook injects user_role and user_unit_ids
-                await supabase.auth.refreshSession();
-                return fetchProfileAndUnits(userId);
-            }
-
-            if (profileError) throw profileError;
-
-            if (!profileData.is_active) {
-                toast.error('Sua conta foi desativada.');
-                await supabase.auth.signOut();
-                return;
-            }
-
-            setProfile(profileData);
-
-            // Fetch units depending on role.
-            if (profileData.role === 'admin') {
-                const { data: adminUnits } = await supabase.from('units').select('*').order('sort_order');
-                setUnits(adminUnits || []);
-                if (adminUnits && adminUnits.length > 0) {
-                    const saved = localStorage.getItem('activeUnitId');
-                    const validSaved = saved && adminUnits.some((u: any) => u.id === saved);
-                    setActiveUnitId(validSaved ? saved : adminUnits[0].id);
-                }
-            } else {
-                const { data: userUnits } = await supabase
-                    .from('user_units')
-                    .select('unit_id, units(id, name)')
-                    .eq('user_id', userId);
-
-                if (userUnits) {
-                    const mappedUnits = userUnits.map((uu: any) => uu.units);
-                    setUnits(mappedUnits);
-                    if (mappedUnits.length > 0) {
-                        const saved = localStorage.getItem('activeUnitId');
-                        const validSaved = saved && mappedUnits.some((u: any) => u.id === saved);
-                        setActiveUnitId(validSaved ? saved : mappedUnits[0].id);
-                    }
-                }
-            }
-
-        } catch (error) {
-            console.error('Error fetching profile:', error);
-            toast.error('Erro ao carregar perfil do usuário.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const createProfileFromInvite = async (userId: string): Promise<boolean> => {
+    const createProfileFromInvite = useCallback(async (userId: string): Promise<boolean> => {
         try {
             // Get user metadata (full_name, invite_token_id set during signUp)
             const { data: { user } } = await supabase.auth.getUser();
@@ -267,7 +134,140 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('Error creating profile from invite:', err);
             return false;
         }
-    };
+    }, []);
+
+    const fetchProfileAndUnits = useCallback(async (userId: string) => {
+        try {
+            const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            // If no profile exists, try to create from invite data
+            if (profileError && profileError.code === 'PGRST116') {
+                const created = await createProfileFromInvite(userId);
+                if (!created) {
+                    toast.error('Perfil não encontrado. Verifique se o convite foi aceito.');
+                    await supabase.auth.signOut();
+                    return;
+                }
+                // Retry fetching the newly created profile
+                // Force JWT refresh so the hook injects user_role and user_unit_ids
+                await supabase.auth.refreshSession();
+                return fetchProfileAndUnits(userId);
+            }
+
+            if (profileError) throw profileError;
+
+            if (!profileData.is_active) {
+                toast.error('Sua conta foi desativada.');
+                await supabase.auth.signOut();
+                return;
+            }
+
+            setProfile(profileData);
+
+            // Fetch units depending on role.
+            if (profileData.role === 'admin') {
+                const { data: adminUnits } = await supabase.from('units').select('*').order('sort_order');
+                setUnits(adminUnits || []);
+                if (adminUnits && adminUnits.length > 0) {
+                    const saved = localStorage.getItem('activeUnitId');
+                    const validSaved = saved && adminUnits.some((u: { id: string }) => u.id === saved);
+                    setActiveUnitId(validSaved ? saved : adminUnits[0].id);
+                }
+            } else {
+                const { data: userUnits } = await supabase
+                    .from('user_units')
+                    .select('unit_id, units(id, name)')
+                    .eq('user_id', userId);
+
+                if (userUnits) {
+                    const mappedUnits = userUnits.map((uu: { units: unknown }) => uu.units as unknown as Unit);
+                    setUnits(mappedUnits);
+                    if (mappedUnits.length > 0) {
+                        const saved = localStorage.getItem('activeUnitId');
+                        const validSaved = saved && mappedUnits.some((u: { id: string }) => u.id === saved);
+                        setActiveUnitId(validSaved ? saved : mappedUnits[0].id);
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+            toast.error('Erro ao carregar perfil do usuário.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [createProfileFromInvite]);
+
+    useEffect(() => {
+        // Initial session fetch - refresh first to ensure JWT claims are current
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+            if (session) {
+                // Refresh to get latest JWT claims from the hook
+                const { data: refreshData } = await supabase.auth.refreshSession();
+                const freshSession = refreshData?.session || session;
+                setSession(freshSession);
+                setUser(freshSession.user);
+                fetchProfileAndUnits(freshSession.user.id);
+            } else {
+                setSession(null);
+                setUser(null);
+                setIsLoading(false);
+            }
+        });
+
+        // Listen for auth changes
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+
+            if (event === 'SIGNED_IN') {
+                if (session) fetchProfileAndUnits(session.user.id);
+            } else if (event === 'SIGNED_OUT') {
+                setProfile(null);
+                setUnits([]);
+                setActiveUnitIdState(null);
+                setIsLoading(false);
+            } else if (event === 'TOKEN_REFRESHED') {
+                // Keep session alive
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [navigate, fetchProfileAndUnits]);
+
+    // Activity timeout logic
+    useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        const resetTimeout = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (session) {
+                timeoutId = setTimeout(() => {
+                    toast.error('Sua sessão expirou. Faça login novamente.');
+                    signOut();
+                }, SESSION_TIMEOUT);
+            }
+        };
+
+        // Events to track activity
+        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+
+        if (session) {
+            resetTimeout();
+            events.forEach((event) => window.addEventListener(event, resetTimeout));
+        }
+
+        return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            events.forEach((event) => window.removeEventListener(event, resetTimeout));
+        };
+    }, [session, signOut]);
 
     const hasPrivilege = (priv: string): boolean => {
         if (!profile) return false;
@@ -294,6 +294,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext);
     if (context === undefined) {
